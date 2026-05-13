@@ -21,7 +21,7 @@ Curated Findings:
 {curated[:120000]}
 """
 
-    result = await ask_llm(prompt)
+    result = await ask_llm(prompt, agent="discovery")
 
     with open("topics/discovered-topics.md", "w") as f:
         f.write(result)

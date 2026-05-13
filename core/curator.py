@@ -21,7 +21,7 @@ Findings:
 Return curated markdown.
 """
 
-    curated = await ask_llm(prompt)
+    curated = await ask_llm(prompt, agent="curator")
 
     with open("workspace/findings/curated.md", "w") as f:
         f.write(curated)

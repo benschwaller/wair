@@ -38,4 +38,4 @@ Discoveries:
 {discoveries[:50000]}
 """
 
-    return await ask_llm(prompt)
+    return await ask_llm(prompt, agent="editor")

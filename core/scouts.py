@@ -31,12 +31,13 @@ async def run_agent(agent, skills):
                     skills=skills,
                 )
 
-                result = await ask_llm(
-                    prompt,
-                    model=agent.model,
-                )
+            result = await ask_llm(
+                prompt,
+                model=agent.model,
+                agent=agent.name,
+            )
 
-                findings.append(result)
+            findings.append(result)
 
     output_path = (
         agent.output

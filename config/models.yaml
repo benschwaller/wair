@@ -1,0 +1,10 @@
+# Agent model configuration
+# Format: agent_name: model_name
+agents:
+  scout-research: openrouter/free
+  scout-slurm: openrouter/free
+  scout-vendors: openrouter/free
+  critic: openrouter/free
+  evolution: openrouter/free
+  editor: openrouter/free
+  # add more agents as needed
