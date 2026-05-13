@@ -103,16 +103,17 @@ def fetch_url(url: str, timeout: int = 20) -> Tuple[Optional[str], Optional[Dict
 def fetch_with_trafilatura(url: str) -> Tuple[Optional[str], Optional[Dict]]:
     """Fetch URL and extract main content using trafilatura."""
     try:
-        from trafilatura import fetch_url, extract
+        from trafilatura import fetch_url as trafilatura_fetch_url, extract
     except ImportError:
-        return fetch_url(url)
+        return None, {"url": url, "error": "trafilatura not installed", "extracted": False}
 
     try:
-        downloaded = fetch_url(url)
+        downloaded = trafilatura_fetch_url(url)
         if downloaded:
             text = extract(downloaded)
-            return text, {"url": url, "extracted": True}
-    except Exception:
+            if text:
+                return text, {"url": url, "extracted": True}
+    except Exception as e:
         pass
 
     return None, {"url": url, "extracted": False}

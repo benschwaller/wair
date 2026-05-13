@@ -2,7 +2,13 @@ from core.llm import ask_llm
 
 
 async def curate_findings(findings):
+    if not findings:
+        return "# No findings to curate\n\nNo scout findings were collected."
+
     combined = "\n\n".join(findings)
+
+    if not combined.strip():
+        return "# No findings to curate\n\nNo content to process."
 
     prompt = f"""You are the HPC Curator Agent.
 

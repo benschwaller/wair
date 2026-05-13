@@ -1,14 +1,18 @@
 ---
-name: research-scout
-role: HPC research scout
 model: openrouter/free
-skills:
-  - summarize
-  - classify
-  - discover-topics
-sources:
-  - rss/hpcwire
+name: research-scout
 output: workspace/findings/research.md
+role: HPC research scout
+skills:
+- classify
+- cuda-management
+- discover-topics
+- gpu-scheduling
+- summarize
+sources:
+- papers/arxiv
+- rss/hpcwire
+- rss/nextplatform
 ---
 
 ## Mission

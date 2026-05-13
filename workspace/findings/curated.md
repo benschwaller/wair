@@ -1,101 +1,46 @@
+## Curated HPC Findings  
 
-Here's a curated markdownreport based on your analysis, focusing on merging duplicates, prioritizing operational relevance, identifying themes, and reducing hype:
+### Major Theme 1 – Quantum‑Class Accelerator Integration  
+| Finding | Source & Date | Credibility | Operational Impact |
+|---|---|---|---|
+| **IonQ opens a new R&D lab in Boulder, Colorado** – Dedicated trapped‑ion quantum‑processor facility with high‑speed (10 GbE / 400 GbE) networking testbed for hybrid quantum‑classical workloads.  Anticipated needs: low‑latency interconnects, scheduler extensions for quantum device reservations, fine‑grained security, and new telemetry (coherence, error‑rate) exporters. | [HPCwire – IonQ opens new quantum computing R&D lab in Colorado](https://www.hpcwire.com/off-the-wire/ionq-opens-new-quantum-computing-rd-lab-in-colorado/) – 13 May 2026 | **High** | • Plan InfiniBand or Ethernet fabrics with dedicated quantum‑ready ports.<br>• Extend job‑schedulers (Slurm, PBS) to handle quantum device queues and co‑allocation with CPUs/GPUs.<br>• Deploy LDAP+MFA and PCIe pass‑through isolation for quantum hardware.<br>• Add Prometheus/Grafana exporters for qubit health metrics. |
+| **Emerging Trend** – The lab signals accelerated deployment of quantum accelerators that will need to be treated as first‑class resources in HPC centers. |
 
-```markdown
-# HPC Infrastructure Intelligence Report
+### Major Theme 2 – AI/ML Workload Infrastructure & Readiness  
+| Finding | Source & Date | Credibility | Operational Impact |
+|---|---|---|---|
+| **Agentic AI adoption is already 41 %** – Enterprises are deploying autonomous AI agents that require sub‑200 ms data‑to‑inference pipelines, high‑throughput NVMe‑over‑Fabric/GPUDirect‑RDMA storage, and event‑driven schedulers. | [HPCwire – What can you do to prepare better for Agentic AI?](https://www.hpcwire.com/2026/05/12/what-can-you-do-to-prepare-better-for-agentic-ai/) – 12 May 2026 | **High** | • Upgrade ingestion pipelines to streaming (Kafka, Pulsar).<br>• Deploy NVMe‑over‑Fabric or GPUDirect‑RDMA tiers (>10 GB/s to GPUs).<br>• Extend Slurm or adopt Kube‑Flow for event‑driven job dispatch.<br>• Review data‑governance for continuous, low‑latency access. |
+| **DOE “Genesis Mission” AI RFA** – Large‑scale AI workloads (thousands of GPUs) will be funded; expect future demand for GPU‑dense, high‑bandwidth interconnects and secure data pipelines. | [HPCwire – DOE seeks reviewers for Genesis Mission AI proposals](https://www.hpcwire.com/off-the-wire/doe-seeks-researchers-to-review-genesis-mission-ai-proposals/) – 12 May 2026 | **High** | • Monitor awarded projects to anticipate new AI workload patterns.<br>• Prepare for scaling GPU clusters (H100, MI300, Xe‑HPC) and HDR InfiniBand/NVLink. |
+| **HPE GreenLake & Alletra MP X10000 updates for AI inference** – Hybrid‑cloud platform enhancements aimed at low‑latency storage for inference, though detailed specs are pending. | [HPCwire – HPE preps customers for AI inference with GreenLake, storage updates](https://www.hpcwire.com/2026/05/12/hpe-preps-customers-for-ai-inference-with-greenlake-storage-updates/) – 12 May 2026 | **High** | • Request detailed IOPS/latency numbers; evaluate GreenLake as a hybrid‑cloud AI inference option. |
+| **Red Hat AI 3.4 with new Inference Service** – Adds a managed inference offering on OpenShift; technical details not yet public. | [HPCwire – Red Hat AI 3.4 announced](https://www.hpcwire.com/2026/05/12/red-hat-learns-new-ai-tricks/) – 12 May 2026 | **High** | • Track further documentation; may simplify AI inference deployment on existing Red Hat stacks. |
+| **Emerging Trend** – Agentic AI and hybrid AI workloads are moving from experimental to production, forcing HPC sites to redesign data pipelines, storage, and scheduling for low‑latency, event‑driven operation. |
 
-## Major Themes Identified
-1. **AI-HPC Convergence**: Accelerated integration of AI/ML workloads into HPC environments, demanding hybrid scheduling and GPU orchestration.
-2. **Infrastructure Modernization**: Investments in scalable networking (Ethernet), storage (GreenLake MP X10000), and orchestration (Red Hat AI Inference).
-3. **Resource Optimization**: Pressure to maximize GPU utilization amid rising compute/memory costs and heterogeneous workload demands.
-4. **Operational Automation**: Shift toward managed services, declarative provisioning, and observability for AI/HPC workloads.
+### Major Theme 3 – Networking Architecture Shifts for Large‑Scale AI  
+| Finding | Source & Date | Credibility | Operational Impact |
+|---|---|---|---|
+| **Multipath Reliable Connection (MRC)** – New Ethernet‑based superset of RoCE that uses 512 × 100 Gb/s ports, 8‑path packet spraying, ECN‑based load‑balancing, packet‑trimming, and SRv6 static routing. Enables a two‑tier fabric (≤3 hops) that can connect ~131 k GPUs with fault‑tolerant link loss (~12 % bandwidth drop). Implemented on Nvidia ConnectX‑8, AMD Pollara/Vulcano DPUs, Broadcom Thor NICs; switches: Nvidia Spectrum 4/5, Arista EOS (Tomahawk 5). | [The Next Platform – Multipath Reliable Connection (MRC) for scalable AI clusters](https://www.nextplatform.com/connect/2026/05/12/openai-microsoft-and-friends-build-a-better-more-scalable-ethernet/5239078) – 12 May 2026 | **High** | • Re‑evaluate fabric design: two‑tier high‑radix Ethernet may replace three‑tier InfiniBand.<br>• Procure 100 Gb/s NICs/DPUs with MRC firmware; update switch OS for SRv6 and ECN.<br>• Adjust monitoring (Prometheus exporters) to capture packet‑trimming and ECN counters.<br>• Plan for higher link count (cabling, power) despite reduced switch count. |
+| **Arista AI‑focused Ethernet fabrics** – Current 800 Gb/s leaf‑spine, roadmap to 1.6 Tb/s ports (2027) and ESUN (Ethernet for Scale‑Up) protocol for rack‑level dynamic bandwidth (CPC/CPO optics). Strong growth in AI networking revenue; supply‑chain constraints expected 1‑2 yr. | [The Next Platform – Arista’s AI‑focused Ethernet fabrics (scale‑out/scale‑up/scale‑across)](https://www.nextplatform.com/connect/2026/05/07/arista-rides-ai-scale-out-networks-moves-into-scale-across-and-awaits-scale-up/5235293) – 7 May 2026 | **High** | • Begin capacity planning for 1.6 Tb/s ports; evaluate ESUN readiness for future rack designs.<br>• Secure early ASIC orders or pre‑pay to mitigate lead‑time risk.<br>• Integrate Arista CloudVision telemetry into existing observability stacks. |
+| **Emerging Trend** – Ethernet is being reinvented to deliver InfiniBand‑class latency and massive scale (MRC, ESUN, 1.6 Tb/s ports), potentially supplanting traditional RoCE/InfiniBand fabrics for next‑gen AI/HPC clusters. |
 
----
+### Major Theme 4 – GPU Hardware Evolution & Air‑Cooled Options  
+| Finding | Source & Date | Credibility | Operational Impact |
+|---|---|---|---|
+| **AMD MI350P air‑cooled GPU** – PCIe form factor, 12 HBM3E stacks, 4 TB/s bandwidth (90 % delivered), 600 W TDP (450 W throttled) delivering 58‑66 % peak FP16/FP8 compute. No multi‑GPU or CPU‑GPU coherency; targeted at 200‑250 B parameter inference and small‑scale training. OEMs: Dell, HPE, Lenovo, Cisco, Supermicro. | [The Next Platform – “Sometimes, Air Is The Only Way For AI Systems To Keep Their Cool”](https://www.nextplatform.com/compute/2026/05/08/sometimes-air-is-the-only-way-for-ai-systems-to-keep-their-cool/5237421) – 8 May 2026 | **High** | • Enables deployment of high‑performance AI nodes in air‑cooled datacenters.<br>• Adjust power budgeting (450 W mode saves ~25 % power).<br>• Schedule single‑node inference jobs; avoid multi‑GPU coherency‑dependent workloads.<br>• Verify driver/stack support for OCP‑FP8, MXFP6/4. |
+| **Emerging Trend** – Air‑cooled, high‑density GPUs broaden the pool of sites that can host AI inference without liquid‑cooling, influencing procurement and rack‑design decisions. |
 
-## Curated Findings
+### Major Theme 5 – Unified Management & Hyper‑Converged HPC Environments  
+| Finding | Source & Date | Credibility | Operational Impact |
+|---|---|---|---|
+| **HPE Private Cloud Gen 4 (Morpheus unified VM & Kubernetes management)** – Single‑pane‑of‑glass for VMs (HPE VM Essentials, VMware), containers, and AI workloads; live‑migration via Zerto; RDMA‑enabled Alletra MP X10000 storage (up to 23 PB, file + S3‑over‑RDMA). GA Q3 2026. | [The Next Platform – HPE throws VM users a lifeline (Private Cloud 4)](https://www.nextplatform.com/cloud/2026/05/13/hpe-throws-vm-users-a-lifeline-unifying-containers-and-vm-management-in-cloud-stack/5239635) – 13 May 2026 | **High** | • Consolidate scheduler interfaces (Slurm ↔ Morpheus API) to reduce tooling overhead.<br>• Leverage Zerto for low‑downtime migration away from VMware.<br>• Exploit RDMA‑enabled storage for AI data pipelines.<br>• Potential cost reduction (10× lower VM licensing). |
+| **Emerging Trend** – Converged VM/container/AI management platforms simplify operations for mixed‑workload HPC sites and provide a migration path from legacy VMware environments. |
 
-### 1. **HPE GreenLake AI Inference Enhancements (Importance: 7/10)**
-**Summary**:  
-HPE upgraded GreenLake with Alletra Storage MP X10000, offering enhanced GPU integration, automated provisioning, and unified management for AI inference workloads.
-
-**Operational Impact**:  
-- ✅ Faster GPU node deployment via APIs  
-- ✅ Low-latency NVMe storage reduces inference bottlenecks  
-- ⚠️ Requires firmware updates for legacy systems  
-- 💡 Hybrid cloud burst capability for variable demand  
-
-**Key Tags**: `GPU`, `storage`, `orchestration`, `vendor`, `research`  
-**Emerging Trend**: Yes – Hybrid-cloud AI inference platforms are becoming standard for scalable, pay-as-you-go HPC.
-
----
-
-### 2. **Red Hat AI Inference 3.4 Release (Importance: 7/10)**
-**Summary**:  
-Red Hat introduced AI Inference service with OpenShift integration, simplifying model serving on-premises/hybrid clouds via declarative CRDs and GPU orchestration.
-
-**Operational Impact**:  
-- ✅ Kubernetes-native GPU provisioning reduces manual config  
-- ✅ Unified observability for AI/batch workloads  
-- ⚠️ Potential resource contention with Slurm unless isolated node pools  
-- 🔒 Enhanced security for shared HPC resources  
-
-**Key Tags**: `GPU`, `orchestration`, `observability`, `vendor`, `research`  
-**Emerging Trend**: Yes – Enterprise Kubernetes services are converging with traditional HPC schedulers.
+### Major Theme 6 – Market & Procurement Pressures  
+| Finding | Source & Date | Credibility | Operational Impact |
+|---|---|---|---|
+| **IT spending surge 2026** – Global IT spend $6.32 T (+13.5 % YoY); datacenter systems $788 B (+55.8 % YoY). Drivers: CPU/GPU/DRAM/Flash shortages, massive AI‑training/inference demand. Power & cooling requirements rise proportionally. | [The Next Platform – Compute & memory price hikes drive IT spending way higher](https://www.nextplatform.com/compute/2026/05/11/compute-and-memory-price-hikes-drive-it-spending-way-higher/5238181) – 11 May 2026 | **High** | • Inflate capital‑budget buffers (20‑30 % for GPUs/CPUs).<br>• Secure multi‑year contracts or pre‑pay to lock in pricing.<br>• Upgrade power, UPS, and HVAC capacity to match higher density.<br>• Accelerate refresh cycles; automate inventory/firmware management. |
+| **Emerging Trend** – The unprecedented spend and component scarcity will reshape procurement cycles, power planning, and scheduler policies for the next 3‑5 years. |
 
 ---
 
-### 3. **Arista Scalable Ethernet for AI (Importance: 8/10)**
-**Summary**:  
-Arista launched GPU-aware Ethernet switches with native NVLink-style interconnects, programmable QoS for Slurm, and multi-site federation capabilities.
-
-**Operational Impact**:  
-- ✅ Eliminates PCIe bottlenecks with 10/200GbE GPU-direct lanes  
-- ✅ Slurm-aware QoS policies prevent bandwidth contention  
-- 🌐 Multi-site federation enables distributed training  
-- 📊 CloudVision API integrates scheduler metrics  
-
-**Key Tags**: `scheduler`, `GPU`, `networking`, `orchestration`, `vendor`  
-**Emerging Trend**: Yes – "Network-first" AI cluster design is becoming critical for distributed training.
-
----
-
-### 4. **Tokyo University DeepAFM Method (Importance: 7/10)**
-**Summary**:  
-New AI approach models protein dynamics/motion, shifting computational biology from static (AlphaFold) to dynamic simulations.
-
-**Operational Impact**:  
-- 🧬 Increases demand for GPU-accelerated molecular dynamics workloads  
-- 🧠 Requires scheduler support for heterogeneous AI/simulation pipelines  
-- 💾 Drives need for high-memory nodes and fast storage  
-
-**Key Tags**: `scheduler`, `GPU`, `storage`, `research`  
-**Emerging Trend**: Yes – AI-augmented simulation workloads are replacing pure physics-based models.
-
----
-
-### 5. **Compute/Memory Price Pressures (Importance: 6/10)**
-**Summary**:  
-Rising GPU/CPU/DRAM costs are forcing HPC admins to optimize resource allocation and reconsider cloud/on-prem tradeoffs.
-
-**Operational Impact**:  
-- 💰 Tighter procurement cycles and longer hardware refresh cycles  
-- 🔄 Increased focus on workload consolidation and utilization metrics  
-- ☁️ Potential shift back to on-prem for cost-sensitive workloads  
-
-**Key Tags**: `orchestration`, `GPU`, `vendor`  
-**Emerging Trend**: No – Reflects ongoing supply chain/demand dynamics rather than a new trend.
-
----
-
-## Recommendations for HPC Administrators
-1. **Prioritize GPU Orchestration**: Invest in scheduler extensions (e.g., Slurm GPU plugins) and Kubernetes integration to manage heterogeneous AI/HPC workloads.
-2. **Evaluate Hybrid Cloud Storage**: Consider HPE GreenLake or similar for scalable, low-latency inference workloads.
-3. **Upgrade Networking Infrastructure**: Arista-style Ethernet solutions offer critical bandwidth for distributed AI training.
-4. **Prepare for Dynamic Workloads**: Develop scheduling policies for AI-accelerated simulation jobs (e.g., DeepAFM-style workloads).
-5. **Monitor Cost Trends**: Implement automated resource rightsizing tools to mitigate price volatility.
-
----
-
-## Key Takeaway
-The HPC landscape is rapidly evolving toward AI-integrated, hybrid-cloud environments. Administrators must prioritize orchestration flexibility, scalable networking, and cost-aware resource management to adapt to these converging trends.
-```
+## Unverified Findings (Needs Source)  
+*None – all retained findings have high‑credibility source citations.*

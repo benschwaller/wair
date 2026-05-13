@@ -78,7 +78,11 @@ async def verify_all_sources():
         verification_results.append(result)
 
         status = "OK" if result["is_active"] else "FAILED"
-        print(f"  {feed['key']}: {status} ({result.get('response_time', 'N/A'):.2f}s)" if result.get("response_time") else f"  {feed['key']}: {status}")
+        resp_time = result.get("response_time")
+        if resp_time is not None:
+            print(f"  {feed['key']}: {status} ({resp_time:.2f}s)")
+        else:
+            print(f"  {feed['key']}: {status}")
 
     active_feeds = [r for r in verification_results if r["is_active"]]
     print(f"  Active: {len(active_feeds)}/{len(verification_results)} feeds")

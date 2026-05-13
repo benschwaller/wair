@@ -5,6 +5,9 @@ from core.llm import ask_llm
 
 
 async def generate_report(curated, discoveries):
+    if not curated or not curated.strip():
+        return f"# HPC Intelligence Report\n\nDate: {datetime.utcnow().strftime('%Y-%m-%d')}\n\n*No curated findings available.*"
+
     today = datetime.utcnow().strftime("%Y-%m-%d")
 
     prompt = f"""You are the Editor Agent for the HPC Intelligence Swarm.
