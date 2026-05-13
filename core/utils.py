@@ -8,6 +8,7 @@ WORKSPACE_DIRS = [
     "workspace/memory",
     "workspace/reports",
     "workspace/scratch",
+    "workspace/topics",
 ]
 
 
