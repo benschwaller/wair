@@ -88,7 +88,7 @@ class EvolutionParser:
     """Parse evolution.md with flexible section detection."""
 
     SECTION_PATTERNS = {
-        "agents": [r"##\s*(?:New\s+)?Agents?", r"##\s*New\s+Agent"],
+        "agents": [r"##\s*(?:New\s+)?Agents?", r"##\s*New\s+Agent", r"##\s*Suggested\s+New\s+Agents?"],
         "prompts": [r"##\s*Prompt\s+(?:Ideas?|Templates?)"],
         "sources": [r"##\s*(?:Source\s+Additions?|Recommended\s+New\s+Sources?)", r"##\s*New\s+Sources"],
         "gaps": [r"##\s*Coverage\s+Gaps?"],
@@ -186,11 +186,27 @@ class EvolutionParser:
                         functionality=functionality or "Not specified",
                         rationale=rationale or "Not specified"
                     ))
+            elif line.startswith("|") and "**" in line:
+                table_row_match = re.search(r'\|\s*\*\*([^\|]+)\*\*', line)
+                if table_row_match:
+                    name = table_row_match.group(1).strip()
+                    cells = [c.strip() for c in line.split("|")]
+                    if len(cells) >= 3:
+                        functionality = cells[2].strip()
+                    if len(cells) >= 4:
+                        rationale = cells[3].strip() if len(cells) > 3 else ""
+                    if name:
+                        sections.agents.append(AgentSuggestion(
+                            name=name,
+                            functionality=functionality or "Not specified",
+                            rationale=rationale or "Not specified"
+                        ))
 
             i += 1
 
     def _parse_sources(self, lines: List[str], sections: EvolutionSections):
         current_sub = None
+        current_category = None
         i = 0
         while i < len(lines):
             line = lines[i].strip()
@@ -198,6 +214,31 @@ class EvolutionParser:
             if re.match(r'^###?\s+', line):
                 i += 1
                 continue
+
+            if line.startswith("|"):
+                cells = [c.strip() for c in line.split("|")]
+                if len(cells) >= 3:
+                    first_cell = cells[1].strip() if len(cells) > 1 else ""
+                    second_cell = cells[2].strip() if len(cells) > 2 else ""
+                    third_cell = cells[3].strip() if len(cells) > 3 else ""
+
+                    if first_cell.startswith("**"):
+                        current_category = first_cell.strip("**")
+                        i += 1
+                        continue
+
+                    if first_cell == "" and second_cell:
+                        title = second_cell
+                        url = third_cell if third_cell.startswith("http") else ""
+                        desc = third_cell if not third_cell.startswith("http") else (cells[4].strip() if len(cells) > 4 else "")
+                        sections.sources.append(SourceSuggestion(
+                            title=title,
+                            url=url,
+                            description=desc,
+                            source_type=current_sub or "rss"
+                        ))
+                    i += 1
+                    continue
 
             if "RSS" in line.upper():
                 current_sub = "rss"
@@ -280,6 +321,23 @@ class EvolutionParser:
                         name=name,
                         description=desc
                     ))
+            elif line.startswith("|") and "|" in line and not re.match(r'\|[\s\-:]+\|', line):
+                cells = [c.strip() for c in line.split("|")]
+                if len(cells) >= 2 and cells[1] and cells[1] != "Gap":
+                    first_cell_lower = cells[1].lower()
+                    if first_cell_lower in ("enhancement", "issue", "recommendation"):
+                        continue
+                    if first_cell_lower.startswith("---"):
+                        continue
+                    name = cells[1]
+                    desc = ""
+                    if len(cells) >= 3 and cells[2]:
+                        desc = cells[2].strip()
+                    if name and name != "Gap":
+                        sections.gaps.append(GapSuggestion(
+                            name=name,
+                            description=desc
+                        ))
 
     def _parse_workflows(self, lines: List[str], sections: EvolutionSections):
         current_title = None
