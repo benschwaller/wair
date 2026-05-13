@@ -1,0 +1,9 @@
+openai
+requests
+feedparser
+trafilatura
+python-frontmatter
+pyyaml
+aiofiles
+httpx
+markdown
