@@ -1,0 +1,8 @@
+# Python
+__pycache__/
+*.pyc
+
+# Workspace output (generated reports/findings)
+workspace/reports/
+workspace/findings/
+workspace/memory/seen-items.jsonl
