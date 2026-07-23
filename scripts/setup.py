@@ -206,9 +206,9 @@ def main() -> int:
         try:
             result = subprocess.run(
                 [HERMES_BIN, "cron", "create",
+                 CRON_EXPR,
+                 CRON_PROMPT,
                  "--name", CRON_JOB_NAME,
-                 "--schedule", CRON_EXPR,
-                 "--prompt", CRON_PROMPT.replace("\n", "\\n"),
                  "--workdir", str(PROJECT_ROOT),
                  "--deliver", "local",
                  ],

@@ -6,6 +6,7 @@ Usage:
     python scripts/fetch_new_rss.py                     # Fetch from all sources
     python scripts/fetch_new_rss.py --scout research     # Fetch only sources for a scout
     python scripts/fetch_new_rss.py --source rss/hpcwire # Fetch a specific source
+    python scripts/fetch_new_rss.py -s rss/hpcwire repos/slurm-schedmd  # Fetch specific source keys
     python scripts/fetch_new_rss.py --limit 3            # Max articles per source
     python scripts/fetch_new_rss.py --health-check       # Only check source health, don't fetch
 
@@ -13,7 +14,12 @@ Output: JSON array of new articles to stdout.
 Each article: {source, source_file, url, title, summary, published, author, content}
 
 The seen-items registry is at workspace/memory/seen-items.jsonl.
-Each line: {"url": "...", "title_hash": "...", "first_seen": "...", "last_reported": "...", "source": "..."}
+Each line: {"url_hash": "...", "title_hash": "...", "url": "...", "title": "...",
+             "first_seen": "...", "last_fetched": "...", "source": "...", "reported": false}
+
+Articles are marked 'reported: false' at fetch time and only become 'reported: true'
+after the weekly report is successfully saved (via scripts/mark_reported.py).
+If the pipeline crashes mid-cycle, unreported items are re-fetched next cycle.
 """
 
 import argparse
@@ -115,8 +121,14 @@ def title_hash(title: str) -> str:
     return hashlib.sha256(normalized.encode()).hexdigest()[:16]
 
 
-def mark_seen(url: str, title: str, source: str):
-    """Mark an article as seen by appending to the registry."""
+def mark_seen(url: str, title: str, source: str, reported: bool = False):
+    """Mark an article as seen by appending to the registry.
+
+    Articles are marked 'reported: false' at fetch time. They only become
+    'reported: true' after the weekly report is successfully saved
+    (via scripts/mark_reported.py). If the pipeline crashes mid-cycle,
+    unreported items will be re-fetched next cycle.
+    """
     SEEN_FILE.parent.mkdir(parents=True, exist_ok=True)
     
     entry = {
@@ -125,8 +137,9 @@ def mark_seen(url: str, title: str, source: str):
         "url": url,
         "title": title[:200],
         "first_seen": datetime.now(timezone.utc).isoformat(),
-        "last_reported": datetime.now(timezone.utc).isoformat(),
+        "last_fetched": datetime.now(timezone.utc).isoformat(),
         "source": source,
+        "reported": reported,
     }
     
     with open(SEEN_FILE, "a") as f:
@@ -134,14 +147,19 @@ def mark_seen(url: str, title: str, source: str):
 
 
 def is_seen(url: str, title: str, seen: Dict[str, dict]) -> bool:
-    """Check if an article has been seen before."""
+    """Check if an article has been seen AND successfully reported.
+
+    Articles from a previous cycle that were never reported (pipeline crashed)
+    are NOT considered "seen" — they will be re-fetched so they don't get lost.
+    """
     uh = url_hash(url)
     th = title_hash(title)
     
-    if uh in seen:
-        return True
-    if th in seen:
-        return True
+    for h in (uh, th):
+        entry = seen.get(h)
+        if entry and entry.get("reported", False):
+            # Only skip if the article was previously reported in a completed cycle
+            return True
     return False
 
 
@@ -271,8 +289,8 @@ def fetch_source(source: Dict, limit: int, seen: Dict[str, dict]) -> List[Dict]:
         if is_seen(url, title, seen):
             continue
         
-        # Mark as seen
-        mark_seen(url, title, source_key)
+        # Mark as seen (unreported — will become reported after report is saved)
+        mark_seen(url, title, source_key, reported=False)
         
         new_articles.append({
             "source": source_key,
@@ -292,18 +310,31 @@ def main():
     parser = argparse.ArgumentParser(description="Fetch new RSS/GitHub articles with dedup")
     parser.add_argument("--scout", type=str, help="Fetch only sources for a specific scout")
     parser.add_argument("--source", type=str, help="Fetch a specific source (e.g., rss/hpcwire)")
+    parser.add_argument("-s", "--sources", nargs="+", help="Fetch only matching source keys (space-separated)")
     parser.add_argument("--limit", type=int, default=5, help="Max articles per source")
     parser.add_argument("--health-check", action="store_true", help="Only check source health")
     args = parser.parse_args()
     
     all_sources = load_all_sources()
     seen = load_seen_items()
+    all_keys = {s["source_key"] for s in all_sources}
     
     # Filter sources
     sources_to_fetch = all_sources
     
     if args.source:
         sources_to_fetch = [s for s in all_sources if s["source_key"] == args.source]
+    elif args.sources:
+        requested = []
+        for key in args.sources:
+            key = key.rstrip(",\s").strip()
+            if not key:
+                continue
+            if key in all_keys:
+                requested.append(key)
+            else:
+                print(f"Warning: unknown source key '{key}'", file=sys.stderr)
+        sources_to_fetch = [s for s in all_sources if s["source_key"] in requested]
     elif args.scout:
         # Scout-based filtering could be added if scout skills list their sources
         # For now, fetch all — the scout subagent will filter by relevance

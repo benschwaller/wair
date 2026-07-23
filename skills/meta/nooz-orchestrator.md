@@ -1,13 +1,13 @@
 ---
 name: nooz-orchestrator
 description: "Weekly HPC/AI intelligence pipeline orchestrator. Runs scouts in parallel, curates findings, generates report, then evolves the system."
-version: 1.0.0
+version: 1.2.0
 category: meta
 ---
 
 # NOOZ Orchestrator: Weekly HPC Intelligence Pipeline
 
-You are the orchestrator for the NOOZ weekly HPC/AI intelligence pipeline. Your job is to execute the full pipeline end-to-end: verify sources, run scouts in parallel, curate findings, generate a report, then run the evolution step.
+You are the orchestrator for the NOOZ weekly HPC/AI intelligence pipeline. Your job is to execute the full pipeline end-to-end: verify sources, run scouts in parallel, curate findings, generate a report, mark articles as reported, then run the evolution step.
 
 ## Pipeline Overview
 
@@ -16,24 +16,58 @@ You are the orchestrator for the NOOZ weekly HPC/AI intelligence pipeline. Your 
 2. Scout Phase (parallel)  → spawn scout subagents via delegate_task
 3. Curation                → dedup, prioritize, theme-group
 4. Report Generation       → synthesize weekly report
-5. Evolution               → autonomous system improvement (separate skill)
+5. Mark Reported           → flip seen-items to reported=true (prevents data loss on crash)
+6. Evolution               → autonomous system improvement (separate skill)
+```
+
+## Phase 0: Sync Models (cron only)
+
+If running as a cron job, first sync models:
+
+```bash
+python3 scripts/sync-models.py
+```
+
+Then verify no :free models leaked in:
+
+```bash
+python3 scripts/verify_no_free_models.py
 ```
 
 ## Phase 1: Source Health Check
 
 Run the health check script:
+
 ```bash
 python scripts/source_health.py
 ```
-Review the output. Note any sources that are inactive. Do not block the pipeline for inactive sources — just note them in the report's source credibility section.
+
+Review the output. Note any sources that are inactive or are not real feeds (HTTP 200 but HTML pages). Do not block the pipeline for inactive sources — just note them in the report's source credibility section.
 
 ## Phase 2: Scout Phase (Parallel)
 
 Spawn all scout subagents in parallel using delegate_task in batch mode. Each scout is a separate subagent that:
 - Loads its scout skill
-- Runs the fetch script to get new articles
+- Runs the fetch script **with the `-s` flag to fetch ONLY its own sources**
 - Fetches full content for relevant articles
 - Produces structured findings
+
+### Scout Source Mapping
+
+Each scout fetches ONLY its assigned sources (not all 74). Use the `-s` flag:
+
+| Scout | Source Keys (pass with `-s`) |
+|-------|------------------------------|
+| scout-research | rss/arxiv-cs.dc rss/arxiv-cs.lg rss/arxiv-cs.pf rss/arxiv-cs.ar rss/hpcwire rss/nextplatform rss/ieee-tpds rss/acm-taco rss/ijhpca rss/usenix-osdi-atc |
+| scout-slurm | repos/slurm-schedmd repos/slurm-(schedmd) rss/hpcwire rss/nextplatform rss/flux-framework rss/openhpc |
+| scout-vendors | rss/nvidia-newsroom rss/nvidia-developer-blog rss/amd-newsroom rss/amd-rocm-blog rss/intel-newsroom rss/hpe-newsroom rss/hpe-developer rss/dell-newsroom rss/lenovo-press rss/ibm-newsroom rss/supermicro-news rss/qualcomm-news |
+| scout-sovereign-ai | rss/nchc-taiwan rss/eurohpc-ju rss/riken-r-ccs rss/kisti rss/pawsey rss/nscc-singapore rss/nsc-shenzhen rss/doe-office-of-science rss/nsf |
+| scout-china-hpc | rss/nsc-shenzhen rss/sugon-english rss/inspur-english rss/phytium-english rss/hisilicon rss/hpcwire rss/nextplatform |
+| scout-middleware | repos/slurm-schedmd repos/slurm-(schedmd) repos/rocm rss/lustre rss/open-mpi rss/openhpc rss/apptainer rss/flux-framework |
+| scout-interconnect-cooling | rss/vertiv-newsroom rss/submer-blog rss/coolit-systems rss/grc rss/asetek rss/uptime-institute rss/hpe-newsroom rss/nvidia-newsroom |
+| scout-conference-standards | rss/sc rss/isc rss/top500 rss/green500 rss/hpcg rss/graph500 rss/mlperf |
+| scout-emerging-accelerators | rss/hpcwire rss/nextplatform rss/intel-newsroom rss/qualcomm-news rss/cerebras-blog rss/groq-blog rss/sambanova-blog rss/quix-quantum |
+| scout-quantum-hpc | rss/ibm-quantum rss/ionq rss/ionq-blog rss/quantinuum-news rss/pasqal-news rss/rigetti-news rss/quera-blog rss/arxiv-quant-ph rss/hpcwire rss/nextplatform |
 
 ### Scouts to Spawn
 
@@ -60,12 +94,12 @@ Spawn these scout subagents (up to 3 at a time due to concurrency limits, so bat
 ### How to Spawn Each Scout
 
 For each scout, use delegate_task with:
-- goal: "Execute the scout mission defined in your loaded skill. Run `python scripts/fetch_new_rss.py --limit 5` to get new articles, filter for relevant ones, fetch full content, and write structured findings to the specified output file."
+- goal: "Execute the scout mission defined in your loaded skill. Run `python scripts/fetch_new_rss.py -s <SOURCE_KEYS> --limit 5` to get new articles (use the source keys from the Scout Source Mapping table above), filter for relevant ones, fetch full content, and write structured findings to the specified output file."
 - context: The project directory path, the scout skill name, and instructions to fetch article content via web tools.
 - toolsets: ['terminal', 'file', 'web']
 - Load the scout skill via the `skills` parameter
 
-**Scout delegation goal — full text** (use this exact string in `delegate_task goal=`):
+**Scout delegation goal — full text** (use this exact string in `delegate_task goal=`, substituting <NAME>, <PROJECT_ROOT>, <SOURCE_KEYS>, and <OUTPUT_FILE>):
 
 ```
 You are scout "<NAME>". Execute the mission defined in your loaded scout skill.
@@ -73,7 +107,9 @@ You are scout "<NAME>". Execute the mission defined in your loaded scout skill.
 Working directory: <PROJECT_ROOT>
 
 Hard requirements:
-1. Run `python scripts/fetch_new_rss.py --limit 5` to get new articles.
+1. Run `python scripts/fetch_new_rss.py -s <SOURCE_KEYS> --limit 5` to get new articles.
+   - Use ONLY the source keys from the Scout Source Mapping table. Do NOT fetch all sources.
+   - Example: for scout-research, use `-s rss/arxiv-cs.dc rss/arxiv-cs.lg rss/arxiv-cs.pf rss/arxiv-cs.ar rss/hpcwire rss/nextplatform rss/ieee-tpds rss/acm-taco rss/ijhpca rss/usenix-osdi-atc`
 2. Filter for articles relevant to your mission.
 3. For each relevant article, fetch full content via web tools.
 4. WRITE STRUCTURED FINDINGS TO THE OUTPUT FILE FIRST.
@@ -109,7 +145,7 @@ done
 ```
 
 If a scout produced a stub (< 1 KB with no `### Finding` headers), do ONE of:
-- **Re-dispatch** the same scout with goal prefix "REWRITE: Your previous run produced only a stub. Rewrite the output file with full finding detail. The articles to process are already in seen-items.jsonl — re-run fetch_new_rss.py to see what's available, then write complete findings. Do NOT exit until the file is > 2 KB with ### Finding sections."
+- **Re-dispatch** the same scout with goal prefix "REWRITE: Your previous run produced only a stub. Rewrite the output file with full finding detail. The articles to process are already in seen-items.jsonl — re-run fetch_new_rss.py with the same -s source keys to see what's available, then write complete findings. Do NOT exit until the file is > 2 KB with ### Finding sections."
 - **Mark as failed** and continue (record in the report's Coverage Notes that the scout produced a stub after re-dispatch).
 
 Do NOT advance to the next batch until the current batch's scouts have either real files or are explicitly marked failed. This prevents the iteration-cap truncation that caused Scout 3 to lose its 11 findings on 2026-07-06.
@@ -175,9 +211,24 @@ Date: [today's date]
 
 Write the report to: `workspace/reports/YYYY-MM-DD.md` (use today's date).
 
-## Phase 5: Evolution
+## Phase 5: Mark Articles as Reported
 
-After the report is saved, load and follow the `nooz-evolution` skill to run the autonomous evolution step. The evolution step will:
+Once the report file is successfully written to disk, run:
+
+```bash
+python scripts/mark_reported.py
+```
+
+This flips `reported: true` on all entries in `workspace/memory/seen-items.jsonl`.
+If this step is skipped (e.g., pipeline crashes before this point), next cycle's
+fetch will re-encounter the same articles and treat them as new — no data loss.
+
+**Always run this AFTER the report is saved, never before.** The report is the
+canonical record; the seen-items registry is just a dedup cache.
+
+## Phase 6: Evolution
+
+After the report is saved and `mark_reported.py` has run, load and follow the `nooz-evolution` skill to run the autonomous evolution step. The evolution step will:
 - Analyze the report and curated findings for coverage gaps
 - Add new sources freely
 - Cautiously create/modify scout skills (max 1 new per cycle, gap must persist 2+ cycles)
@@ -201,6 +252,9 @@ If you change a model, verify it resolves as a paid model on OpenRouter first.
 ## Important Notes
 
 - The fetch_new_rss.py script handles dedup automatically via seen-items.jsonl
+- Articles are marked `reported: false` at fetch time and only become `reported: true`
+  after the report is saved and `mark_reported.py` runs. This prevents data loss
+  from mid-cycle crashes.
 - If a scout finds no new articles, that's fine — note it and continue
 - The pipeline should complete end-to-end without user interaction
 
@@ -213,7 +267,7 @@ job is strictly:
 1. Run `source_health.py` (health check only — no article fetching)
 2. `delegate_task` to spawn scouts (they fetch, filter, and write findings)
 3. Read the findings files the scouts produced
-4. Curate, report, evolve
+4. Curate, report, run `mark_reported.py`, evolve
 
 If you find yourself writing a `/tmp/fetch_*.py` script or calling `web_search`/
 `read_file` on an article URL, STOP — you are doing scout work. Wait for the
@@ -226,6 +280,7 @@ iteration cap before curation/report.
 A verification script is provided at `scripts/verify_no_free_models.py` — run it
 after any model config change to confirm no `:free` variants have crept in and
 that the two-tier structure (scout != orchestrator) is still intact:
+
 ```bash
 python3 scripts/verify_no_free_models.py
 ```

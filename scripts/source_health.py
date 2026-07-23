@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Source health checker — verifies all configured sources are reachable.
+Source health checker — verifies all configured sources are reachable
+AND are actual RSS/feed sources (not HTML pages).
 
 Usage:
     python scripts/source_health.py                    # Check all sources
@@ -21,6 +22,34 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fetch_new_rss import load_all_sources, check_source_health
 
 
+def check_feed_validity(url: str) -> dict:
+    """Check if a URL returns a parseable feed (RSS, Atom, etc.)."""
+    result = {
+        "has_entries": False,
+        "entry_count": 0,
+        "feed_title": None,
+        "is_feed": False,
+    }
+    try:
+        import feedparser
+        import requests
+        resp = requests.get(url, headers={
+            "User-Agent": "nooz-hermes/1.0 (+https://github.com/nooz)"
+        }, timeout=15, allow_redirects=True)
+        content_type = resp.headers.get("content-type", "").lower()
+        # Check content-type hint
+        is_xml = "xml" in content_type or "rss" in content_type or "atom" in content_type
+        feed = feedparser.parse(resp.content)
+        result["feed_title"] = feed.feed.get("title")
+        result["entry_count"] = len(feed.entries)
+        result["has_entries"] = len(feed.entries) > 0
+        # Consider it a real feed if it has entries OR the content-type signals feed
+        result["is_feed"] = bool(feed.entries or is_xml or feed.feed.get("title"))
+    except Exception:
+        pass
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description="Check source health")
     parser.add_argument("--source", type=str, help="Check a specific source")
@@ -37,19 +66,34 @@ def main():
         health["source"] = src["source_key"]
         health["name"] = src["name"]
         health["description"] = src["description"]
+        
+        # Also check if the URL is a real feed, not just HTTP 200
+        if health["is_active"] and src["type"] == "rss":
+            feed_info = check_feed_validity(src["url"])
+            health["is_feed"] = feed_info["is_feed"]
+            health["feed_entry_count"] = feed_info["entry_count"]
+            health["feed_title"] = feed_info.get("feed_title")
+        else:
+            health["is_feed"] = True  # repos don't need feed check
+        
         results.append(health)
         status = "OK" if health["is_active"] else "FAIL"
         rt = health.get("response_time", "?")
-        print(f"  {src['source_key']}: {status} ({rt}s)", file=sys.stderr)
+        feed_warn = ""
+        if health["is_active"] and not health.get("is_feed", True):
+            feed_warn = " (NOT A FEED!)"
+        print(f"  {src['source_key']}: {status} ({rt}s){feed_warn}", file=sys.stderr)
     
     active = [r for r in results if r["is_active"]]
     inactive = [r for r in results if not r["is_active"]]
+    fake_feeds = [r for r in results if r["is_active"] and not r.get("is_feed", True)]
     
     output = {
         "checked_at": datetime.now(timezone.utc).isoformat(),
         "total": len(results),
         "active": len(active),
         "inactive": len(inactive),
+        "fake_feeds": len(fake_feeds),
         "sources": results,
     }
     
@@ -63,16 +107,23 @@ def main():
     
     if inactive:
         md += f"**WARNING: {len(inactive)} sources inactive or unreachable**\n\n"
+    if fake_feeds:
+        md += f"**WARNING: {len(fake_feeds)} sources return HTTP 200 but are NOT real RSS/Atom feeds (HTML pages)**\n\n"
     
     for r in results:
         status = "Active" if r["is_active"] else "Inactive"
-        md += f"## {r['source']}\n"
+        feed_status = ""
+        if r["is_active"] and not r.get("is_feed", True):
+            feed_status = " (NOT a feed — HTML page)"
+        md += f"## {r['source']}{feed_status}\n"
         md += f"- Status: {status}\n"
         md += f"- URL: {r['url']}\n"
         if r.get("response_time"):
             md += f"- Response Time: {r['response_time']}s\n"
         if r.get("status_code"):
             md += f"- HTTP Status: {r['status_code']}\n"
+        if r.get("feed_entry_count") is not None:
+            md += f"- Feed Entries: {r['feed_entry_count']}\n"
         if r.get("error"):
             md += f"- Error: {r['error']}\n"
         md += "\n"
