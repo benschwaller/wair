@@ -327,7 +327,7 @@ def main():
     elif args.sources:
         requested = []
         for key in args.sources:
-            key = key.rstrip(",\s").strip()
+            key = key.rstrip(",").strip()
             if not key:
                 continue
             if key in all_keys:

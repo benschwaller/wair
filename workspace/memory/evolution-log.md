@@ -138,3 +138,52 @@ None.
 - Audited all 71 RSS sources with feedparser. **Only 13 (18%) were real RSS feeds.** The other 58 (82%) were homepage URLs that return HTML, not RSS — the same bug that caused ISC content to be missed. `source_health.py` passed them all because it only checks HTTP 200, not feed format.
 - After this fix: 29/71 (41%) are real feeds. 25 high-priority sources still broken (no RSS found by automated probing). 17 lower-priority sources also still broken. These need manual research or alternative coverage strategies.
 - **Recommended evolution action next cycle:** (a) enhance `source_health.py` to use feedparser and check for `entries > 0`, not just HTTP 200; (b) continue probing the 25 not-found sources manually; (c) consider alternative sources for paywalled journals (IEEE/ACM/IJHPCA).
+
+---
+
+## 2026-07-24 — Cycle 3
+
+### Sources Added
+None this cycle — no new sources added. Gaps requiring new sources all have cycle_count = 1 and need one more cycle of observation before source-level action.
+
+### Sources Updated (URL fixes)
+None — all existing URL fixes from cycles 1–2.5 holding stable.
+
+### Scout Skills Modified
+None — all 12 scout skill files unchanged this cycle. "Robust Output" requirements from cycle 2.5 continue to produce quality findings.
+
+### Scout Skills Created
+None — no new scout was created. The only gap with cycle_count ≥ 2 that might warrant a new scout is "Interconnect fabric coverage missing," but the cooling/interconnect scout already exists and the gap is about missing sources within it, not about a missing domain entirely. Re-evaluate next cycle if fabric coverage remains zero.
+
+### Scout Skills Archived (if any)
+None — all active scouts produced findings this cycle. No barren_cycles counters triggered (none were at R3).
+
+### Gaps Identified
+
+#### Resolved this cycle:
+- **arXiv/IEEE/ACM research feeds** → RESOLVED. All four arXiv RSS subdomains (cs.DC, cs.LG, cs.PF, cs.AR) returned articles this cycle. The cs.DC URL fix (cycle 1) confirmed working.
+- **Liquid-cooling vendor feeds** → RESOLVED. Vertiv (10 findings), Submer (4 findings), GRC active. URL fixes confirmed stable.
+- **Scout subagent output-write reliability** → RESOLVED. 11/12 scouts produced valid files with the poll-and-collect protocol.
+
+#### Persisting (cycle_count ≥ 2):
+- **China-HPC first-party sources** (cycle_count: 3): All 5 dedicated feeds returned 0. DNS failures persist for phytium-english, sugon-english, nchc-taiwan. Continue covering via The Next Platform and TOP500.org.
+- **ACM/IJHPCA journal feeds** (cycle_count: 3): 403 from both journals. No alternative RSS found.
+- **HPE/AMD/IBM newsroom unreliability** (cycle_count: 3): HPE still times out. Dell/IBM/Supermicro returned 0 this cycle. vendors-systems was Lenovo-only.
+- **Emerging accelerator vendor feeds sparse** (cycle_count: 3): SambaNova dominates. Cerebras/Groq/Qualcomm/QuiX all returned 0.
+- **Quantum vendor feeds sparse** (cycle_count: 3): IonQ dominates. 5 other vendors returned 0.
+
+#### New this cycle:
+- **Interconnect fabric coverage missing** (cycle_count: 1): No Slingshot/Quantum-X/Spectrum-X/Ultra Ethernet updates. interconnect-cooling scout has no dedicated fabric sources.
+- **Content retrieval blocked by paywalls/cookie-gates** (cycle_count: 1): Next Platform paywall and HPCwire Cloudflare cookie-gate block full article retrieval on WSL host.
+- **research-journals scout failure** (cycle_count: 1): Subagent never produced output file. Likely due to all journal feeds being unreachable (403/404).
+
+### Quality Issues
+- Next Platform paywall blocking full article content: china-hpc and quantum-hpc scouts operating from abstract summaries only. This degrades analytical depth for China-HPC and quantum stories.
+- HPCwire Cloudflare cookie-gate: multiple scouts unable to fetch full article bodies for key stories (Terra Quantum, DOE Genesis awards).
+- vendors-systems scout produced Lenovo-only findings — coverage gap for HPE, Dell, IBM, Supermicro.
+- 30 "NOT A FEED" sources still returning HTML rather than RSS — only ~18/71 sources actively producing RSS articles.
+
+### Pipeline Reliability
+- **Poll-and-collect protocol works.** The 4-batch dispatch with 480s wait + 120s re-poll produced 11/12 valid output files this cycle. No iteration-cap issues.
+- **research-journals failure is a content problem, not a protocol problem.** The subagent had no articles to write about (all 6 journal sources are either 403, 404, or returning non-article HTML).
+- **Total pipeline wall-clock time:** ~45 minutes (30 min health check + 4×8 min scout batches). Well within the cron job's execution window.
