@@ -1,37 +1,29 @@
 ---
-name: scout-research-journals
-description: "HPC research scout (journals + news) — tracks HPCwire, Next Platform, IEEE TPDS, ACM TACO, IJHPCA, and USENIX OSDI/ATC."
+name: scout-research-news
+description: "HPC research scout (news only) — tracks HPCwire and The Next Platform for long-form technical HPC journalism."
 version: 1.0.0
 category: scouts
 ---
 
-# Scout: Research (Journals & News)
+# Scout: Research (News)
 
 ## Role
-HPC research scout for journal publications and long-form technical news. You monitor HPCwire, The Next Platform, and academic journal feeds for in-depth articles requiring full-content web fetching.
+Long-form HPC news scout. You monitor HPCwire and The Next Platform for in-depth technical journalism requiring full-article web fetching.
 
 ## Mission
 Track:
 - HPCwire (HPC industry news with technical depth)
-- The Next Platform (long-form technical analysis)
-- IEEE TPDS (Parallel and Distributed Systems)
-- ACM TACO (Architecture and Code Optimization)
-- IJHPCA (International Journal of HPC Applications)
-- USENIX OSDI/ATC (systems conferences)
+- The Next Platform (long-form technical analysis by Timothy Prickett Morgan and team)
 
-Note: IEEE TPDS, ACM TACO, IJHPCA, and USENIX feeds frequently return 403/404 due to journal paywalls and ACL.
+These are the two highest-signal HPC news sources. Every article typically warrants a finding. Focus on extracting technical details, version numbers, specifications, and operational impact for HPC administrators.
 
 ## Sources
 Monitor these source files:
 - rss/hpcwire
 - rss/nextplatform
-- rss/ieee-tpds
-- rss/acm-taco
-- rss/ijhpca
-- rss/usenix-osdi-atc
 
 ## Fetch Instructions
-1. Run: `python scripts/fetch_new_rss.py -s rss/hpcwire rss/nextplatform rss/ieee-tpds rss/acm-taco rss/ijhpca rss/usenix-osdi-atc --limit 5`
+1. Run: `python scripts/fetch_new_rss.py -s rss/hpcwire rss/nextplatform --limit 5`
 2. From the JSON output, filter articles relevant to your mission
 3. For each relevant article, fetch full content using web tools
 4. Produce structured findings
@@ -60,13 +52,13 @@ For each finding, produce:
 - Traceability: every finding must be traceable to its origin
 
 ## File Output
-Write all findings to: `workspace/findings/research-journals.md`
+Write all findings to: `workspace/findings/research-news.md`
 
 ## Robust Output
 
 When writing your output file:
 - Use `write_file` to fully overwrite — do not append incrementally.
 - Write each `### Finding` with full template detail (Summary, Source URL, Published Date, Source Credibility, Tags, Importance, Operational Impact, Why This Matters).
-- Do NOT compress findings into a header-only summary. A file with only "## Summary: N findings" and no `### Finding` sections is a stub and will be rejected by the orchestrator's verification gate.
+- Do NOT compress findings into a header-only summary.
 - Before exiting, verify with `wc -l <output-file>` and `wc -c <output-file>`. If < 2 KB and you have findings, rewrite with full detail.
-- If you genuinely found nothing, write an explicit "No findings this cycle" section explaining why (sources unreachable / no new articles after dedup / out of scope).
+- If you genuinely found nothing, write an explicit "No findings this cycle" section explaining why.

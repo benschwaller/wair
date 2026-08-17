@@ -179,7 +179,7 @@ def fetch_rss_feed(url: str, limit: int = 5) -> List[Dict]:
             entry = {
                 "title": item.get("title", ""),
                 "link": item.get("link", ""),
-                "summary": item.get("summary", "")[:500],
+                "summary": item.get("summary", "")[:5000],
                 "published": item.get("published", ""),
             }
             if hasattr(item, "author"):
@@ -235,7 +235,7 @@ def fetch_github_releases(url: str, limit: int = 3) -> List[Dict]:
         return [{"error": str(e)}]
 
 
-def check_source_health(url: str) -> Dict:
+def check_source_health(url: str, timeout: int = 10) -> Dict:
     """Check if a source URL is healthy."""
     try:
         import requests
@@ -253,7 +253,7 @@ def check_source_health(url: str) -> Dict:
     
     try:
         start = time.time()
-        response = requests.get(url, headers=HEADERS, timeout=10, allow_redirects=True)
+        response = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
         result["response_time"] = round(time.time() - start, 2)
         result["status_code"] = response.status_code
         result["is_active"] = response.status_code == 200

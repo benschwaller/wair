@@ -6,6 +6,8 @@ AND are actual RSS/feed sources (not HTML pages).
 Usage:
     python scripts/source_health.py                    # Check all sources
     python scripts/source_health.py --source rss/hpcwire # Check one source
+    python scripts/source_health.py --batch 10          # Check in batches of 10
+    python scripts/source_health.py --timeout 20        # Per-request timeout (s)
 
 Output: JSON with health status for each source.
 Also writes a markdown report to workspace/findings/source-verification.md
@@ -14,6 +16,7 @@ Also writes a markdown report to workspace/findings/source-verification.md
 import argparse
 import json
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fetch_new_rss import load_all_sources, check_source_health
 
 
-def check_feed_validity(url: str) -> dict:
+def check_feed_validity(url: str, timeout: int = 15) -> dict:
     """Check if a URL returns a parseable feed (RSS, Atom, etc.)."""
     result = {
         "has_entries": False,
@@ -35,7 +38,7 @@ def check_feed_validity(url: str) -> dict:
         import requests
         resp = requests.get(url, headers={
             "User-Agent": "nooz-hermes/1.0 (+https://github.com/nooz)"
-        }, timeout=15, allow_redirects=True)
+        }, timeout=timeout, allow_redirects=True)
         content_type = resp.headers.get("content-type", "").lower()
         # Check content-type hint
         is_xml = "xml" in content_type or "rss" in content_type or "atom" in content_type
@@ -53,6 +56,11 @@ def check_feed_validity(url: str) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="Check source health")
     parser.add_argument("--source", type=str, help="Check a specific source")
+    parser.add_argument("--batch", type=int, default=0,
+                        help="Check sources in batches of N, pausing between batches "
+                             "to avoid a single long-running invocation timing out")
+    parser.add_argument("--timeout", type=int, default=10,
+                        help="Per-request timeout in seconds (default: 10)")
     args = parser.parse_args()
     
     sources = load_all_sources()
@@ -60,29 +68,39 @@ def main():
     if args.source:
         sources = [s for s in sources if s["source_key"] == args.source]
     
+    batch_size = args.batch if args.batch > 0 else len(sources)
+    
     results = []
-    for src in sources:
-        health = check_source_health(src["url"])
-        health["source"] = src["source_key"]
-        health["name"] = src["name"]
-        health["description"] = src["description"]
+    for batch_start in range(0, len(sources), batch_size):
+        batch = sources[batch_start:batch_start + batch_size]
+        for src in batch:
+            health = check_source_health(src["url"], timeout=args.timeout)
+            health["source"] = src["source_key"]
+            health["name"] = src["name"]
+            health["description"] = src["description"]
+            
+            # Also check if the URL is a real feed, not just HTTP 200
+            if health["is_active"] and src["type"] == "rss":
+                feed_info = check_feed_validity(src["url"], timeout=args.timeout)
+                health["is_feed"] = feed_info["is_feed"]
+                health["feed_entry_count"] = feed_info["entry_count"]
+                health["feed_title"] = feed_info.get("feed_title")
+            else:
+                health["is_feed"] = True  # repos don't need feed check
+            
+            results.append(health)
+            status = "OK" if health["is_active"] else "FAIL"
+            rt = health.get("response_time", "?")
+            feed_warn = ""
+            if health["is_active"] and not health.get("is_feed", True):
+                feed_warn = " (NOT A FEED!)"
+            print(f"  {src['source_key']}: {status} ({rt}s){feed_warn}", file=sys.stderr)
         
-        # Also check if the URL is a real feed, not just HTTP 200
-        if health["is_active"] and src["type"] == "rss":
-            feed_info = check_feed_validity(src["url"])
-            health["is_feed"] = feed_info["is_feed"]
-            health["feed_entry_count"] = feed_info["entry_count"]
-            health["feed_title"] = feed_info.get("feed_title")
-        else:
-            health["is_feed"] = True  # repos don't need feed check
-        
-        results.append(health)
-        status = "OK" if health["is_active"] else "FAIL"
-        rt = health.get("response_time", "?")
-        feed_warn = ""
-        if health["is_active"] and not health.get("is_feed", True):
-            feed_warn = " (NOT A FEED!)"
-        print(f"  {src['source_key']}: {status} ({rt}s){feed_warn}", file=sys.stderr)
+        # Pause between batches so a single invocation stays within the timeout
+        if batch_start + batch_size < len(sources):
+            print(f"  ...batch complete ({batch_start + len(batch)}/{len(sources)}), "
+                  f"pausing before next batch...", file=sys.stderr)
+            time.sleep(1)
     
     active = [r for r in results if r["is_active"]]
     inactive = [r for r in results if not r["is_active"]]

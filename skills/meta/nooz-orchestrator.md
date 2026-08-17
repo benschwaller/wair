@@ -1,19 +1,19 @@
 ---
 name: nooz-orchestrator
-description: "Weekly HPC/AI intelligence pipeline orchestrator. Runs 12 scouts via poll-and-collect (no retries), curates findings, generates report, then evolves the system."
-version: 1.4.0
+description: "Weekly HPC/AI intelligence pipeline orchestrator. Runs 15 scouts via poll-and-collect (no retries), curates findings, generates report, then evolves the system."
+version: 1.5.0
 category: meta
 ---
 
 # NOOZ Orchestrator: Weekly HPC Intelligence Pipeline
 
-You are the orchestrator for the NOOZ weekly HPC/AI intelligence pipeline. Your job is to execute the full pipeline end-to-end: verify sources, run 12 scouts via poll-and-collect (no retries — if a scout doesn't produce a file within 300s, it's failed), curate findings, generate a report, mark articles as reported, then run the evolution step.
+You are the orchestrator for the NOOZ weekly HPC/AI intelligence pipeline. Your job is to execute the full pipeline end-to-end: verify sources, run 15 scouts via poll-and-collect (no retries — if a scout doesn't produce a file within ~10 min, it's failed), curate findings, generate a report, mark articles as reported, then run the evolution step.
 
 ## Pipeline Overview
 
 ```
 1. Source Health Check     → verify all sources reachable
-2. Scout Phase             → delete old files → dispatch 4 batches of 3 via delegate_task(background=true) → poll once at +180s, again at +300s → no retries
+2. Scout Phase             → delete old files → dispatch 5 batches of 3 via delegate_task(background=true) → poll once at +480s, again at +600s → no retries
 3. Curation                → dedup, prioritize, theme-group
 4. Report Generation       → synthesize weekly report
 5. Mark Reported           → flip seen-items to reported=true (prevents data loss on crash)
@@ -36,11 +36,15 @@ python3 scripts/verify_no_free_models.py
 
 ## Phase 1: Source Health Check
 
-Run the health check script:
+Run the health check script. Use batching so the check stays within the
+120s timeout even with many sources (each source can take up to ~25s):
 
 ```bash
-python scripts/source_health.py
+python scripts/source_health.py --batch 10
 ```
+
+If the run still times out, retry with a smaller batch (e.g. `--batch 5`)
+or raise the per-request timeout with `--timeout 20`.
 
 Review the output. Note any sources that are inactive or are not real feeds (HTTP 200 but HTML pages). Do not block the pipeline for inactive sources — just note them in the report's source credibility section.
 
@@ -62,7 +66,10 @@ Each scout writes to a fixed path. Memorize this mapping:
 | Scout | Output File |
 |-------|-------------|
 | scout-research-arxiv | `workspace/findings/research-arxiv.md` |
-| scout-research-journals | `workspace/findings/research-journals.md` |
+| scout-research-news | `workspace/findings/research-news.md` |
+| scout-openaire-operations | `workspace/findings/openaire-operations.md` |
+| scout-openaire-systems | `workspace/findings/openaire-systems.md` |
+| scout-research-labs | `workspace/findings/research-labs.md` |
 | scout-slurm | `workspace/findings/slurm.md` |
 | scout-vendors-gpu | `workspace/findings/vendors-gpu.md` |
 | scout-vendors-systems | `workspace/findings/vendors-systems.md` |
@@ -81,14 +88,17 @@ Each scout fetches ONLY its assigned sources (not all 74). Use the `-s` flag:
 | Scout | Source Keys (pass with `-s`) |
 |-------|------------------------------|
 | scout-research-arxiv | rss/arxiv-cs.dc rss/arxiv-cs.lg rss/arxiv-cs.pf rss/arxiv-cs.ar |
-| scout-research-journals | rss/hpcwire rss/nextplatform rss/ieee-tpds rss/acm-taco rss/ijhpca rss/usenix-osdi-atc |
+| scout-research-news | rss/hpcwire rss/nextplatform |
+| scout-openaire-operations | rss/openaire-administration rss/openaire-monitoring rss/openaire-scheduling |
+| scout-openaire-systems | rss/openaire-orchestration rss/openaire-networking rss/openaire-general |
+| scout-research-labs | rss/nersc-news rss/ornl-news rss/lbnl-news rss/sandia-news rss/csc-finland-news rss/bsc-barcelona-news |
 | scout-slurm | repos/slurm-schedmd repos/slurm-(schedmd) rss/hpcwire rss/nextplatform rss/flux-framework rss/openhpc |
 | scout-vendors-gpu | rss/nvidia-newsroom rss/nvidia-developer-blog rss/amd-newsroom rss/amd-rocm-blog rss/intel-newsroom rss/qualcomm-news |
 | scout-vendors-systems | rss/hpe-newsroom rss/hpe-developer rss/dell-newsroom rss/lenovo-press rss/ibm-newsroom rss/supermicro-news |
 | scout-sovereign-ai | rss/nchc-taiwan rss/eurohpc-ju rss/riken-r-ccs rss/kisti rss/pawsey rss/nscc-singapore rss/nsc-shenzhen rss/doe-office-of-science rss/nsf |
 | scout-china-hpc | rss/nsc-shenzhen rss/sugon-english rss/inspur-english rss/phytium-english rss/hisilicon rss/hpcwire rss/nextplatform |
 | scout-middleware | repos/slurm-schedmd repos/slurm-(schedmd) repos/rocm rss/lustre rss/open-mpi rss/openhpc rss/apptainer rss/flux-framework |
-| scout-interconnect-cooling | rss/vertiv-newsroom rss/submer-blog rss/coolit-systems rss/grc rss/asetek rss/uptime-institute rss/hpe-newsroom rss/nvidia-newsroom |
+| scout-interconnect-cooling | rss/vertiv-newsroom rss/submer-blog rss/coolit-systems rss/grc rss/asetek rss/uptime-institute rss/hpe-newsroom rss/nvidia-newsroom rss/arista-blog rss/broadcom-news rss/ultra-ethernet rss/cxl-consortium |
 | scout-conference-standards | rss/sc rss/isc rss/top500 rss/green500 rss/hpcg rss/graph500 rss/mlperf |
 | scout-emerging-accelerators | rss/hpcwire rss/nextplatform rss/intel-newsroom rss/qualcomm-news rss/cerebras-blog rss/groq-blog rss/sambanova-blog rss/quix-quantum |
 | scout-quantum-hpc | rss/ibm-quantum rss/ionq rss/ionq-blog rss/quantinuum-news rss/pasqal-news rss/rigetti-news rss/quera-blog rss/arxiv-quant-ph rss/hpcwire rss/nextplatform |
@@ -99,7 +109,7 @@ Before dispatching any scouts, delete every scout output file so stale files fro
 prior cycles cannot pass the poll check. Run:
 
 ```bash
-rm -f workspace/findings/research-arxiv.md workspace/findings/research-journals.md workspace/findings/slurm.md workspace/findings/vendors-gpu.md workspace/findings/vendors-systems.md workspace/findings/sovereign-ai.md workspace/findings/china-hpc.md workspace/findings/middleware.md workspace/findings/interconnect-cooling.md workspace/findings/conference-standards.md workspace/findings/emerging-accelerators.md workspace/findings/quantum-hpc.md
+rm -f workspace/findings/research-arxiv.md workspace/findings/research-news.md workspace/findings/openaire-operations.md workspace/findings/openaire-systems.md workspace/findings/research-labs.md workspace/findings/slurm.md workspace/findings/vendors-gpu.md workspace/findings/vendors-systems.md workspace/findings/sovereign-ai.md workspace/findings/china-hpc.md workspace/findings/middleware.md workspace/findings/interconnect-cooling.md workspace/findings/conference-standards.md workspace/findings/emerging-accelerators.md workspace/findings/quantum-hpc.md
 ```
 
 ### Step 2b: Dispatch a batch (3 scouts in parallel)
@@ -138,21 +148,24 @@ Substitute these values per scout:
 | Scout | NAME | SOURCE_KEYS | OUTPUT_FILE |
 |-------|------|-------------|-------------|
 | scout-research-arxiv | research-arxiv | rss/arxiv-cs.dc rss/arxiv-cs.lg rss/arxiv-cs.pf rss/arxiv-cs.ar | workspace/findings/research-arxiv.md |
-| scout-research-journals | research-journals | rss/hpcwire rss/nextplatform rss/ieee-tpds rss/acm-taco rss/ijhpca rss/usenix-osdi-atc | workspace/findings/research-journals.md |
+| scout-research-news | research-news | rss/hpcwire rss/nextplatform | workspace/findings/research-news.md |
+| scout-openaire-operations | openaire-operations | rss/openaire-administration rss/openaire-monitoring rss/openaire-scheduling | workspace/findings/openaire-operations.md |
+| scout-openaire-systems | openaire-systems | rss/openaire-orchestration rss/openaire-networking rss/openaire-general | workspace/findings/openaire-systems.md |
+| scout-research-labs | research-labs | rss/nersc-news rss/ornl-news rss/lbnl-news rss/sandia-news rss/csc-finland-news rss/bsc-barcelona-news | workspace/findings/research-labs.md |
 | scout-slurm | slurm | repos/slurm-schedmd repos/slurm-(schedmd) rss/hpcwire rss/nextplatform rss/flux-framework rss/openhpc | workspace/findings/slurm.md |
 | scout-vendors-gpu | vendors-gpu | rss/nvidia-newsroom rss/nvidia-developer-blog rss/amd-newsroom rss/amd-rocm-blog rss/intel-newsroom rss/qualcomm-news | workspace/findings/vendors-gpu.md |
 | scout-vendors-systems | vendors-systems | rss/hpe-newsroom rss/hpe-developer rss/dell-newsroom rss/lenovo-press rss/ibm-newsroom rss/supermicro-news | workspace/findings/vendors-systems.md |
 | scout-sovereign-ai | sovereign-ai | rss/nchc-taiwan rss/eurohpc-ju rss/riken-r-ccs rss/kisti rss/pawsey rss/nscc-singapore rss/nsc-shenzhen rss/doe-office-of-science rss/nsf | workspace/findings/sovereign-ai.md |
 | scout-china-hpc | china-hpc | rss/nsc-shenzhen rss/sugon-english rss/inspur-english rss/phytium-english rss/hisilicon rss/hpcwire rss/nextplatform | workspace/findings/china-hpc.md |
 | scout-middleware | middleware | repos/slurm-schedmd repos/slurm-(schedmd) repos/rocm rss/lustre rss/open-mpi rss/openhpc rss/apptainer rss/flux-framework | workspace/findings/middleware.md |
-| scout-interconnect-cooling | interconnect-cooling | rss/vertiv-newsroom rss/submer-blog rss/coolit-systems rss/grc rss/asetek rss/uptime-institute rss/hpe-newsroom rss/nvidia-newsroom | workspace/findings/interconnect-cooling.md |
+| scout-interconnect-cooling | interconnect-cooling | rss/vertiv-newsroom rss/submer-blog rss/coolit-systems rss/grc rss/asetek rss/uptime-institute rss/hpe-newsroom rss/nvidia-newsroom rss/arista-blog rss/broadcom-news rss/ultra-ethernet rss/cxl-consortium | workspace/findings/interconnect-cooling.md |
 | scout-conference-standards | conference-standards | rss/sc rss/isc rss/top500 rss/green500 rss/hpcg rss/graph500 rss/mlperf | workspace/findings/conference-standards.md |
 | scout-emerging-accelerators | emerging-accelerators | rss/hpcwire rss/nextplatform rss/intel-newsroom rss/qualcomm-news rss/cerebras-blog rss/groq-blog rss/sambanova-blog rss/quix-quantum | workspace/findings/emerging-accelerators.md |
 | scout-quantum-hpc | quantum-hpc | rss/ibm-quantum rss/ionq rss/ionq-blog rss/quantinuum-news rss/pasqal-news rss/rigetti-news rss/quera-blog rss/arxiv-quant-ph rss/hpcwire rss/nextplatform | workspace/findings/quantum-hpc.md |
 
 ### Step 2c: Batch dispatch order
 
-Dispatch in 4 batches (3 scouts × 4, 12 scouts total). For each batch:
+Dispatch in 5 batches (3 + 3 + 3 + 3 + 3, 15 scouts total). For each batch:
 
 1. Dispatch all 3 scouts via `delegate_task(background=true)`
 2. Wait 480 seconds (8 min — `child_timeout_seconds` is 900, most scouts finish by 5–8 min)
@@ -160,10 +173,11 @@ Dispatch in 4 batches (3 scouts × 4, 12 scouts total). For each batch:
 4. If still missing/stub after the second poll, **mark as failed and move on — no retries**
 5. Only proceed to the next batch when all 3 scouts have either valid files or are explicitly failed
 
-**Batch 1:** scout-research-arxiv, scout-research-journals, scout-slurm
-**Batch 2:** scout-vendors-gpu, scout-vendors-systems, scout-sovereign-ai
-**Batch 3:** scout-china-hpc, scout-middleware, scout-interconnect-cooling
-**Batch 4:** scout-conference-standards, scout-emerging-accelerators, scout-quantum-hpc
+**Batch 1:** scout-research-arxiv, scout-research-news, scout-research-labs
+**Batch 2:** scout-openaire-operations, scout-openaire-systems, scout-slurm
+**Batch 3:** scout-vendors-gpu, scout-vendors-systems, scout-sovereign-ai
+**Batch 4:** scout-china-hpc, scout-middleware, scout-interconnect-cooling
+**Batch 5:** scout-conference-standards, scout-emerging-accelerators, scout-quantum-hpc
 
 ### Step 2d: Poll and verify output files
 
@@ -202,7 +216,7 @@ fire-and-forget issue that caused the 2026-07-23 run to stall.
 
 ### Step 2e: After all scouts complete
 
-Read all 12 output files from `workspace/findings/` to collect the scout results.
+Read all 15 output files from `workspace/findings/` to collect the scout results.
 If a scout produced no findings, note it but continue to curation.
 
 ## Phase 3: Curation

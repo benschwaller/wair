@@ -9,8 +9,8 @@ cron scheduling, skill loading, `delegate_task` subagents, and autonomous evolut
 
 Every week, automatically:
 
-1. **Verifies sources** — Health-checks all 58 sources (55 RSS feeds + 3 GitHub release pages).
-2. **Runs scouts in parallel** — 10 scout subagents each fetch from their assigned sources,
+1. **Verifies sources** — Health-checks all 79 sources (76 RSS feeds + 3 GitHub release pages).
+2. **Runs scouts in parallel** — 15 scout subagents each fetch from their assigned sources,
    filter for new articles (deduped against a seen-items registry), and produce structured findings.
 3. **Curates** — Deduplicates, prioritizes, theme-groups, and tags findings.
 4. **Generates a report** — Synthesizes a weekly HPC/AI intelligence report with citations,
@@ -91,7 +91,7 @@ nooz-hermes/
 │   ├── scouts/                         # Scout skills (one per domain)
 │   └── meta/                           # Pipeline orchestration skills
 ├── sources/
-│   ├── rss/                            # 55 RSS source definitions
+│   ├── rss/                            # 76 RSS source definitions
 │   └── repos/                          # 3 GitHub release sources
 └── workspace/
     ├── reports/                        # Weekly reports (YYYY-MM-DD.md)
@@ -104,14 +104,14 @@ nooz-hermes/
 
 ## Source Coverage
 
-58 sources monitored across:
+79 sources monitored across:
 
 - Vendor newsrooms (NVIDIA, AMD, Intel, HPE, Dell, Lenovo, IBM, Supermicro, Qualcomm)
 - National HPC programs (EuroHPC, RIKEN, NCHC Taiwan, KISTI, Pawsey, NSCC, NSC, DoE, NSF)
 - Chinese vendors (Sugon, Inspur, Phytium, HiSilicon)
 - HPC software projects (Slurm, Lustre, Open MPI, ROCm, Apptainer, Flux, OpenHPC)
 - Conferences & benchmarks (SC, ISC, Top500, Green500, HPCG, Graph500, MLPerf)
-- Academic (arXiv cs.DC, IEEE TPDS, ACM TACO, IJHPCA, USENIX OSDI/ATC)
+- Academic (arXiv cs.DC/cs.LG/cs.PF/cs.AR, OpenAIRE open-access publications across 6 HPC-admin topic queries, US DOE labs (NERSC, ORNL, LBNL, Sandia), EU HPC centers (CSC Finland/LUMI, BSC Barcelona/MareNostrum))
 - Cooling & infrastructure (Vertiv, Submer, CoolIT, Asetek, GRC, Uptime Institute)
 - Quantum (IBM Quantum, IonQ)
 - Trade press (HPCwire, The Next Platform, Phoronix, LWN, AnandTech)

@@ -27,6 +27,10 @@ Track:
 - rss/uptime-institute
 - rss/hpe-newsroom (for Slingshot)
 - rss/nvidia-newsroom (for Quantum/Spectrum-X)
+- rss/arista-blog (Ethernet switching, EOS, 400G/800G for AI/HPC)
+- rss/broadcom-news (Tomahawk/Jericho, PCIe switches, custom ASICs)
+- rss/ultra-ethernet (Ultra Ethernet Consortium — open Ethernet for AI/HPC)
+- rss/cxl-consortium (CXL 3.x — memory pooling, composable infrastructure)
 
 Note (2026-06-29): Updated URLs to RSS feeds for Submer, CoolIT, GRC (the HTML pages returned empty/low-quality parses). Vertiv URL switched from /en-us/newsroom/ (404) to /en-us/about/news-and-press/rss (working RSS). Asetek kept as HTML root since no working RSS exists. If a feed returns 0 articles for 2+ consecutive cycles, it should be replaced or removed.
 

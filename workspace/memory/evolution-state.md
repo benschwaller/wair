@@ -1,104 +1,120 @@
 # Evolution State
 
-**Last Updated:** 2026-07-24
-**Current Cycle:** 3
+**Last Updated:** 2026-08-11
+**Current Cycle:** 5
 
 ## Persistent Gaps
 
 ### Gap: China-HPC first-party sources unreachable (DNS failures)
 - **First Observed:** 2026-06-29
-- **Cycle Count:** 3
-- **Last Observed:** 2026-07-24
+- **Cycle Count:** 5
+- **Last Observed:** 2026-08-11
 - **Status:** open (unmitigated)
-- **Action Taken:** None — DNS failures persist for phytium-english, sugon-english, nchc-taiwan, kisti. All 5 dedicated China-vendor feeds returned 0 new articles this cycle. Continue covering China-HPC via third-party (The Next Platform provides the Western analytic context; LineShine TOP500 #1 covered by conference-standards scout).
+- **Action Taken:** Still unmitigated — DNS failures persist for phytium-english, sugon-english, nchc-taiwan. china-hpc scout produced 1 cross-cutting finding from Next Platform this cycle (Nvidia GenAI model vs Chinese open-source benchmarks). Consider Chinese-language feeds with machine translation or accepting episodic coverage.
 
 ### Gap: ACM/IJHPCA journal feeds return 403
 - **First Observed:** 2026-06-29
-- **Cycle Count:** 3
-- **Last Observed:** 2026-07-24
+- **Cycle Count:** 5
+- **Last Observed:** 2026-08-11
 - **Status:** open (unmitigated)
-- **Action Taken:** None — paywall/ACL blocking. research-journals scout failed entirely this cycle. The arXiv RSS feeds are now producing 19 articles/cycle, partially mitigating academic HPC coverage.
+- **Action Taken:** No change — paywall/ACL blocking persists. arXiv RSS feeds are now the primary academic HPC research source. The 5 arXiv/scout teams (cs.DC, cs.LG, cs.PF, cs.AR, quant-ph) produced 20+ articles this cycle with high-quality technical content.
 
-### Gap: HPE/AMD/IBM newsroom feeds unreliable — Systems vendors coverage thin
+### Gap: HPE/Dell/IBM/Supermicro newsroom feeds unreliable — Systems vendors coverage thin
 - **First Observed:** 2026-06-29
-- **Cycle Count:** 3
-- **Last Observed:** 2026-07-24
-- **Status:** open (partially mitigated — AMD working, HPE still timeout)
-- **Action Taken:** AMD Newsroom (ir.amd.com) is active and returning articles. HPE Newsroom, HPE Developer, Dell Newsroom, IBM Newsroom, Supermicro News all returned 0 new articles this cycle. vensors-systems scout was Lenovo-only. Consider adding alternate HPE/Dell press RSS URLs in next cycle.
+- **Cycle Count:** 5
+- **Last Observed:** 2026-08-11
+- **Status:** open (worsening — scout FAILED this cycle)
+- **Action Taken:** vendors-systems scout FAILED entirely this cycle (file never appeared). First complete failure for this scout — prior cycles were Lenovo-only. No HPE, Dell, IBM, Supermicro, Lenovo findings this cycle. This is now a critical gap in systems vendor coverage.
 
 ### Gap: Emerging accelerator vendor feeds sparse
 - **First Observed:** 2026-06-29
-- **Cycle Count:** 3
-- **Last Observed:** 2026-07-24
-- **Status:** open (partially mitigated)
-- **Action Taken:** SambaNova was the dominant signal this cycle (5 articles). Cerebras, Groq, Qualcomm, and QuiX feeds returned 0. Tenstorrent, Etched, Lightmatter, Graphcore, FuriosaAI, Rebellions still absent.
+- **Cycle Count:** 5
+- **Last Observed:** 2026-08-11
+- **Status:** open (improving — SambaNova dominated)
+- **Action Taken:** SambaNova contributed 2 strong findings this cycle (SemiAnalysis SN50 benchmark, premium inference thesis). Cerebras, Groq, Qualcomm, QuiX Quantum returned 0. No change for Tenstorrent, Etched, Lightmatter, Graphcore, FuriosaAI, Rebellions.
 
 ### Gap: Quantum vendor feeds sparse
 - **First Observed:** 2026-06-29
-- **Cycle Count:** 3
-- **Last Observed:** 2026-07-24
-- **Status:** open (partially mitigated)
-- **Action Taken:** IonQ (news + blog) was active this cycle (4 relevant articles). IBM Quantum, Quantinuum, Pasqal, Rigetti, QuEra returned 0. arXiv quant-ph returned 2 relevant preprints. PsiQuantum and Xanadu still absent.
+- **Cycle Count:** 5
+- **Last Observed:** 2026-08-11
+- **Status:** open (improving — IonQ + arXiv active)
+- **Action Taken:** IonQ had 2 strong findings (Sandia MOU, EPB quantum memory). arXiv quant-ph produced 3 preprints. IBM Quantum, Quantinuum, Pasqal, Rigetti, QuEra returned 0. PsiQuantum and Xanadu still absent.
 
 ### Gap: Interconnect fabric coverage missing
 - **First Observed:** 2026-07-24
-- **Cycle Count:** 1
-- **Last Observed:** 2026-07-24
-- **Status:** open (new)
-- **Action Taken:** None yet. No Slingshot, Quantum-X, Spectrum-X, or Ultra Ethernet updates this cycle. HPE and NVIDIA newsrooms both returned 0 new articles. Interconnect scout mission has no dedicated interconnect-fabric sources (only cooling vendors).
+- **Cycle Count:** 3
+- **Last Observed:** 2026-08-11
+- **Status:** open (action taken this cycle)
+- **Action Taken:** Added 4 new source feeds: rss/arista-blog, rss/broadcom-news, rss/ultra-ethernet, rss/cxl-consortium. Patched both scout-interconnect-cooling skill and orchestrator skill to include new sources. Scout failed again this cycle (3rd consecutive failure) — the added sources target the root cause (no fabric-specific feeds), but the scout reliability issue also needs addressing.
 
 ### Gap: Content retrieval blocked by paywalls/cookie-gates
 - **First Observed:** 2026-07-24
-- **Cycle Count:** 1
-- **Last Observed:** 2026-07-24
-- **Status:** open (new)
-- **Action Taken:** None yet. Next Platform behind internal paywall on WSL host — subagents can only access abstract summaries, not full article bodies. HPCwire behind Cloudflare cookie-gate. This degrades china-hpc, emerging-accelerators, and quantum-hpc scout quality.
+- **Cycle Count:** 3
+- **Last Observed:** 2026-08-11
+- **Status:** open (unmitigated)
+- **Action Taken:** No change. Next Platform and HPCwire content retrieval remains partially blocked. Scouts successfully retrieved content this cycle (research-news produced 5 quality findings from both sources), so the blocking may be intermittent or the scouts are working around it.
 
-### Gap: research-journals scout failure
-- **First Observed:** 2026-07-24
+### Gap: Scout subagent reliability regressed
+- **First Observed:** 2026-07-27
+- **Cycle Count:** 2
+- **Last Observed:** 2026-08-11
+- **Status:** open (improving — 87% vs 80% last cycle)
+- **Action Taken:** 13/15 scouts succeeded (87%, up from 80%). 2 failed: vendors-systems (new failure) and interconnect-cooling (3rd consecutive). Research-news and openaire-operations RECOVERED from prior-cycle failures. The poll protocol (480s + 120s) continues to work correctly.
+
+### Gap: China-HPC English-language coverage dead
+- **First Observed:** 2026-07-27
+- **Cycle Count:** 2
+- **Last Observed:** 2026-08-11
+- **Status:** open (marginally improved)
+- **Action Taken:** china-hpc scout produced 1 finding this cycle (vs 0 last cycle) — a Next Platform article on Nvidia GenAI model benchmarking against Qwen/DeepSeek/Moonshot. Domestic English vendor feeds continue silent. Recommend evaluating Chinese-language sources with translation.
+
+### Gap: vendors-systems scout failing (NEW)
+- **First Observed:** 2026-08-11
 - **Cycle Count:** 1
-- **Last Observed:** 2026-07-24
-- **Status:** open (new)
-- **Action Taken:** None yet. Subagent never produced output file. Possible causes: subagent timed out, or journal feeds all returned 0/403 with nothing to write. Monitor next cycle.
+- **Last Observed:** 2026-08-11
+- **Status:** open (new — monitor next cycle)
+- **Action Taken:** Scout dispatched but never produced output file. First complete failure for this scout. Previously Lenovo-only, now nothing. Root cause unknown — likely subagent timeout/crash. Monitor next cycle; if it fails again, investigate goal structure and source health.
 
 ## Resolved Gaps
 
-### ~~Gap: arXiv/IEEE/ACM research feeds not returning articles~~ → RESOLVED
-- **Resolution:** arXiv RSS feeds returned 19 new articles this cycle (cs.DC: 15, cs.LG: 263, cs.PF: 4, cs.AR: 7). All four arXiv subdomains are producing content. The URL fix from cycle 1 (switching cs.DC from HTML to export.arxiv.org/rss) is confirmed working.
+### ~~Gap: arXiv/IEEE/ACM research feeds not returning articles~~ → RESOLVED (Cycle 1-3)
+- **Resolution:** All four arXiv RSS subdomains active. research-arxiv produced 5 detailed findings (25KB).
 
-### ~~Gap: Liquid-cooling vendor feeds unreachable~~ → RESOLVED
-- **Resolution:** Vertiv (302 entries, 10 relevant findings), Submer (12 entries, 4 findings), GRC (10 entries) all active. CoolIT returned 0 this cycle but feed is reachable. URL updates from cycles 1–2 holding stable.
+### ~~Gap: Liquid-cooling vendor feeds unreachable~~ → RESOLVED (Cycle 1-3)
+- **Resolution:** URL updates stable. Coverage gap now in scout reliability, not feed health.
 
-### ~~Gap: Scout subagent output-write reliability~~ → RESOLVED
-- **Resolution:** 11/12 scouts produced valid output files this cycle. The poll-and-collect protocol (4 batches, 480s wait + 120s second poll) worked correctly. The single failure (research-journals) was a feed-payload issue, not a write-path issue.
+### ~~Gap: Scout subagent output-write reliability~~ → RESOLVED (Cycle 3), partially regressed
+- **Resolution:** 13/15 scouts succeeded with valid output files. Improvement from 12/15 last cycle.
 
 ## Scout Performance Summary
 
 | Scout | Cycles Active | Last Finding | Barren Cycles | Status |
 |-------|--------------|--------------|---------------|--------|
-| scout-research-arxiv | 3 | 2026-07-24 | 0 | active |
-| scout-research-journals | 3 | — | 1 | FAILED this cycle |
-| scout-slurm | 3 | 2026-07-24 | 0 | active |
-| scout-vendors-gpu | 3 | 2026-07-24 | 0 | active |
-| scout-vendors-systems | 3 | 2026-07-24 | 0 | active (Lenovo-only this cycle) |
-| scout-sovereign-ai | 3 | 2026-07-24 | 0 | active |
-| scout-china-hpc | 3 | 2026-07-24 | 0 | active (third-party only) |
-| scout-middleware | 3 | 2026-07-24 | 0 | active |
-| scout-interconnect-cooling | 3 | 2026-07-24 | 0 | active (cooling-only, no fabric) |
-| scout-conference-standards | 3 | 2026-07-24 | 0 | active |
-| scout-emerging-accelerators | 3 | 2026-07-24 | 0 | active (SambaNova-dominated) |
-| scout-quantum-hpc | 3 | 2026-07-24 | 0 | active (IonQ-dominated) |
+| scout-research-arxiv | 5 | 2026-08-11 | 0 | active |
+| scout-research-news | 5 | 2026-08-11 | 0 | RECOVERED (failed cycle 4) |
+| scout-research-labs | 5 | 2026-08-11 | 0 | active |
+| scout-openaire-operations | 5 | 2026-08-11 | 0 | RECOVERED (failed cycle 4) |
+| scout-openaire-systems | 5 | 2026-08-11 | 0 | active |
+| scout-slurm | 5 | 2026-08-11 | 0 | active |
+| scout-vendors-gpu | 5 | 2026-08-11 | 0 | active (9 findings, richest scout) |
+| scout-vendors-systems | 5 | — | 1 | FAILED this cycle (new) |
+| scout-sovereign-ai | 5 | 2026-08-11 | 0 | active |
+| scout-china-hpc | 5 | 2026-08-11 | 0 | active (1 finding, marginal) |
+| scout-middleware | 5 | 2026-07-27 | 1 | active (0 findings — all deduped) |
+| scout-interconnect-cooling | 5 | 2026-07-24 | 2 | FAILED this cycle (3rd consecutive) |
+| scout-conference-standards | 5 | 2026-08-11 | 0 | active (2 findings, MLPerf) |
+| scout-emerging-accelerators | 5 | 2026-08-11 | 0 | active (2 findings, SambaNova) |
+| scout-quantum-hpc | 5 | 2026-08-11 | 0 | active |
 
 ## Source Health Summary
 
-**Post-cycle-3:**
-- Total sources: 71
-- Active: 63 (88.7%)
-- Inactive: 8 (acm-taco 403, hpe-newsroom timeout, ijhpca 403, kisti 404, nchc-taiwan DNS, phytium-english DNS, sugon-english DNS, supermicro-news 404)
-- Fake feeds (NOT A FEED, returning HTML): 30
-- Genuine RSS feeds producing articles: ~18 active this cycle
-
-**Source yield by category:**
-- High-yield: AMD IR, NVIDIA Developer Blog, Lenovo Press, TOP500.org, ISC-HPC.com, arXiv (all 4 subdomains), SchedMD GitHub, Flux Framework, OpenHPC, Lustre, Vertiv, Pawsey, IonQ (news+blog), SambaNova Blog, Next Platform, HPCwire, MLCommons
-- Low-yield: Intel Newsroom (only Leixlip story), Submer (4 articles)
-- Zero-yield: All 5 China-vendor feeds, HPE/Dell/IBM/Supermicro, Cerebras/Groq/Qualcomm, 5 quantum vendors, CoolIT, Asetek, Uptime Institute
+**Post-cycle-5:**
+- Total sources: 75 (+4 this cycle: arista-blog, broadcom-news, ultra-ethernet, cxl-consortium)
+- Active sources producing content: ~30 (40%)
+- Scouts succeeding: 13/15 (87%, up from 80%)
+- Scout failures: 2 (vendors-systems, interconnect-cooling)
+- Scouts with 0 findings: 1 (middleware — dedup, not barren)
+- Scout with 1 marginal finding: china-hpc
+- High-yield scouts: vendors-gpu (9 findings, 28KB), research-arxiv (5 findings, 25KB), research-news (5 findings, 15KB), openaire-systems (5 findings, 11KB), quantum-hpc (5+ findings, 10KB)
+- Failed health checks: hpe-newsroom (timeout), kisti (timeout), nchc-taiwan (timeout) — source_health.py timed out at 120s
+- New sources added this cycle: 4 (fabric/networking: arista-blog, broadcom-news, ultra-ethernet, cxl-consortium)
