@@ -37,7 +37,7 @@ def check_feed_validity(url: str, timeout: int = 15) -> dict:
         import feedparser
         import requests
         resp = requests.get(url, headers={
-            "User-Agent": "nooz-hermes/1.0 (+https://github.com/nooz)"
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) nooz-hermes/1.0 (+https://github.com/nooz)"
         }, timeout=timeout, allow_redirects=True)
         content_type = resp.headers.get("content-type", "").lower()
         # Check content-type hint
@@ -79,14 +79,19 @@ def main():
             health["name"] = src["name"]
             health["description"] = src["description"]
             
-            # Also check if the URL is a real feed, not just HTTP 200
+            # Also check if the URL is a real feed, not just HTTP 200.
+            # Skip the feed-validity check for sources explicitly typed as
+            # "html" or "json" — those are vendor newsrooms with no RSS
+            # feed, scraped via trafilatura or fetched as JSON. They are
+            # expected to return non-feed content.
             if health["is_active"] and src["type"] == "rss":
                 feed_info = check_feed_validity(src["url"], timeout=args.timeout)
                 health["is_feed"] = feed_info["is_feed"]
                 health["feed_entry_count"] = feed_info["entry_count"]
                 health["feed_title"] = feed_info.get("feed_title")
             else:
-                health["is_feed"] = True  # repos don't need feed check
+                # repos, html, and json sources don't need the feed check
+                health["is_feed"] = True
             
             results.append(health)
             status = "OK" if health["is_active"] else "FAIL"

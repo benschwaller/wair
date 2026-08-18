@@ -103,14 +103,23 @@ Each scout fetches ONLY its assigned sources (not all 74). Use the `-s` flag:
 | scout-emerging-accelerators | rss/hpcwire rss/nextplatform rss/intel-newsroom rss/qualcomm-news rss/cerebras-blog rss/groq-blog rss/sambanova-blog rss/quix-quantum |
 | scout-quantum-hpc | rss/ibm-quantum rss/ionq rss/ionq-blog rss/quantinuum-news rss/pasqal-news rss/rigetti-news rss/quera-blog rss/arxiv-quant-ph rss/hpcwire rss/nextplatform |
 
-### Step 2a: Delete ALL previous findings files
+### Step 2a: Archive and delete ALL previous findings files
 
-Before dispatching any scouts, delete every scout output file so stale files from
-prior cycles cannot pass the poll check. Run:
+Before dispatching any scouts, archive the previous cycle's findings for audit,
+then delete every file in `workspace/findings/` so stale files from prior cycles
+cannot pass the poll check or leak into curation. Do NOT delete by filename
+pattern — batched-scout runs write files like `research.md`, `vendors.md`, and
+`scout-*.md` that do not match the per-scout naming convention and would survive
+a targeted `rm -f`, so wipe the whole directory. Run:
 
 ```bash
-rm -f workspace/findings/research-arxiv.md workspace/findings/research-news.md workspace/findings/openaire-operations.md workspace/findings/openaire-systems.md workspace/findings/research-labs.md workspace/findings/slurm.md workspace/findings/vendors-gpu.md workspace/findings/vendors-systems.md workspace/findings/sovereign-ai.md workspace/findings/china-hpc.md workspace/findings/middleware.md workspace/findings/interconnect-cooling.md workspace/findings/conference-standards.md workspace/findings/emerging-accelerators.md workspace/findings/quantum-hpc.md
+mkdir -p workspace/findings.archive/$(date -u +%Y-%m-%d)
+cp -r workspace/findings/. workspace/findings.archive/$(date -u +%Y-%m-%d)/
+rm -rf workspace/findings/*
 ```
+
+`workspace/findings.archive/` is under `workspace/` and therefore gitignored, so
+archives persist for audit without being versioned.
 
 ### Step 2b: Dispatch a batch (3 scouts in parallel)
 
@@ -125,20 +134,22 @@ Working directory: <PROJECT_ROOT>
 Hard requirements:
 1. Run `python scripts/fetch_new_rss.py -s <SOURCE_KEYS> --limit 5` to get new articles.
    - Use ONLY the source keys from the Scout Source Mapping table. Do NOT fetch all sources.
-2. Filter for articles relevant to your mission.
-3. For each relevant article, fetch full content via web tools.
-4. WRITE STRUCTURED FINDINGS TO THE OUTPUT FILE FIRST.
+2. **EARLY EXIT ON EMPTY FETCH.** If the fetch output shows `total_new_articles: 0`, do NOT attempt web fetches against source URLs, do NOT retry, do NOT burn your time budget. Immediately write the output file with an explicit "No findings this cycle" section stating the reason (e.g. "fetch_new_rss.py returned 0 new articles after dedup; sources may be unreachable or all recent items already reported"), then return your one-line summary and exit. A scout that exits cleanly with a "No findings this cycle" file is a SUCCESS — a scout that times out at 900s trying to scrape dead URLs is a FAILURE.
+3. If the fetch returned articles, filter for articles relevant to your mission.
+4. For each relevant article, fetch full content via web tools.
+5. WRITE STRUCTURED FINDINGS TO THE OUTPUT FILE FIRST.
    - Write to: <OUTPUT_FILE>
    - Write each finding with the full template from your scout skill: ### Title, Summary, Source URL, Published Date, Source Credibility, Tags, Importance, Operational Impact, Why This Matters.
    - Every finding MUST include the source URL and a published date (or "Unknown").
    - Use write_file (full overwrite) — do not append incrementally.
    - Do NOT summarize or compress findings into a header-only stub.
-5. Verify the file yourself before exiting:
+6. Verify the file yourself before exiting:
    - Run `wc -l <OUTPUT_FILE>` and `wc -c <OUTPUT_FILE>`.
    - The file must be > 2 KB OR contain an explicit "No findings this cycle" section with reasons.
    - If < 2 KB and no explicit "no findings" explanation, REWRITE the file with the missing detail. Do not exit with a stub.
-6. Return ONLY a one-line summary, e.g.:
+7. Return ONLY a one-line summary, e.g.:
    "Scout <NAME>: <N> findings written to <path> (<KB> KB). <One sentence on what the top finding is>."
+   Or, for a clean no-findings exit: "Scout <NAME>: 0 findings — no new articles after dedup; wrote No findings this cycle to <path>."
 
 Do not do orchestrator work (curation, reporting, evolution). Do not modify files outside your output file.
 ```
@@ -273,6 +284,21 @@ Date: [today's date]
 4. **Technical depth**: version numbers, dates, configurations, performance metrics
 5. **No marketing language** — use technical, precise language
 6. **Traceability**: every section traceable to specific findings
+
+### Humanize the report
+
+Before writing the report to disk, read the humanizer skill and apply it to the
+report prose:
+
+```
+read_file skills/meta/humanizer.md
+```
+
+Then rewrite the report's prose per that skill (file mode): remove AI writing
+patterns (inflated claims, sales language, stock AI words, passive voice,
+filler, em dashes) while keeping every fact, citation, URL, version number,
+and metric intact. Do not drop or invent any source. Keep the report's
+technical, neutral register — do not add personality.
 
 Write the report to: `workspace/reports/YYYY-MM-DD.md` (use today's date).
 

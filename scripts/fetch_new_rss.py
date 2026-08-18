@@ -25,13 +25,12 @@ If the pipeline crashes mid-cycle, unreported items are re-fetched next cycle.
 import argparse
 import hashlib
 import json
-import os
 import re
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 # Project root is parent of scripts/
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -39,12 +38,18 @@ SEEN_FILE = PROJECT_ROOT / "workspace" / "memory" / "seen-items.jsonl"
 SOURCES_DIR = PROJECT_ROOT / "sources"
 
 HEADERS = {
-    "User-Agent": "nooz-hermes/1.0 (+https://github.com/nooz)"
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) nooz-hermes/1.0 (+https://github.com/nooz)"
 }
 
 
 def parse_source_file(path: Path) -> Optional[Dict]:
-    """Parse a source .md file. Extract URL and description."""
+    """Parse a source .md file. Extract URL, description, and optional type override.
+
+    The `type:` field is optional and overrides the directory-based type.
+    Supported values: "rss" (default for sources/rss/), "repos" (default for
+    sources/repos/), "html" (treat the URL as an HTML listing page to scrape
+    via trafilatura — used for vendor newsrooms that publish no RSS feed).
+    """
     text = path.read_text().strip()
     
     # Find URL line
@@ -59,7 +64,11 @@ def parse_source_file(path: Path) -> Optional[Dict]:
     description = desc_match.group(1).strip() if desc_match else ""
     
     # Determine source type from path
-    source_type = path.parent.name  # "rss" or "repos"
+    dir_type = path.parent.name  # "rss" or "repos"
+    
+    # Optional type override (e.g. type: html for scrape sources)
+    type_match = re.search(r'^Type:\s*(\S+)', text, re.MULTILINE)
+    source_type = type_match.group(1).strip().lower() if type_match else dir_type
     
     # Extract name from filename
     name = path.stem
@@ -69,7 +78,7 @@ def parse_source_file(path: Path) -> Optional[Dict]:
         "url": url,
         "description": description,
         "type": source_type,
-        "source_key": f"{source_type}/{name}",
+        "source_key": f"{dir_type}/{name}",
         "file_path": str(path),
     }
 
@@ -235,6 +244,248 @@ def fetch_github_releases(url: str, limit: int = 3) -> List[Dict]:
         return [{"error": str(e)}]
 
 
+def fetch_json_api(url: str, limit: int = 5) -> List[Dict]:
+    """Fetch articles from a JSON API endpoint.
+
+    Generic handler for vendor APIs that return a JSON object with an `items`
+    (or `results`/`data`) array. Each item is expected to have some
+    combination of `title`, `link`/`url`/`cta.link`, `contentDate`/`date`/
+    `published`, and `description`/`summary`/`text` fields. Used for vendors
+    like HPE whose newsroom is a JS app backed by a JSON API.
+    """
+    try:
+        import requests
+    except ImportError:
+        return [{"error": "requests not installed"}]
+    
+    ua = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) nooz-hermes/1.0 (+https://github.com/nooz)",
+        "Accept": "application/json",
+    }
+    
+    try:
+        resp = requests.get(url, headers=ua, timeout=30, allow_redirects=True)
+    except Exception as e:
+        return [{"error": f"fetch error: {e}"}]
+    
+    if resp.status_code != 200:
+        return [{"error": f"HTTP {resp.status_code}"}]
+    
+    try:
+        data = resp.json()
+    except Exception as e:
+        return [{"error": f"JSON parse error: {e}"}]
+    
+    # Find the items array — check common keys
+    items = []
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict):
+        for key in ("items", "results", "data", "articles", "posts"):
+            if key in data and isinstance(data[key], list):
+                items = data[key]
+                break
+        if not items:
+            # Maybe the dict itself is a single article
+            items = [data]
+    
+    entries = []
+    for item in items[:limit]:
+        if not isinstance(item, dict):
+            continue
+        # Try common field names, including nested cta.link (HPE's format)
+        title = (
+            item.get("title")
+            or (item.get("cta", {}) or {}).get("text")
+            or item.get("name")
+            or ""
+        )
+        link = (
+            item.get("link")
+            or item.get("url")
+            or (item.get("cta", {}) or {}).get("link")
+            or item.get("href")
+            or ""
+        )
+        published = (
+            item.get("contentDate")
+            or item.get("date")
+            or item.get("published")
+            or item.get("published_at")
+            or ""
+        )
+        summary = (
+            item.get("description")
+            or item.get("summary")
+            or item.get("text")
+            or item.get("body")
+            or ""
+        )
+        # HPE nests a description under image.text sometimes
+        if not summary and isinstance(item.get("image"), dict):
+            summary = item["image"].get("text", "")
+        summary = summary[:5000] if summary else ""
+        if title and link:
+            entries.append({
+                "title": title,
+                "link": link,
+                "summary": summary,
+                "published": published,
+                "author": "",
+            })
+    
+    return entries
+
+
+def fetch_html_page(url: str, source_key: str, limit: int = 5) -> List[Dict]:
+    """Scrape an HTML listing page (e.g. a vendor newsroom with no RSS feed).
+
+    Strategy: use trafilatura to extract the main content (which naturally
+    excludes navigation/boilerplate), then pull article links from the
+    extracted markdown. Each discovered article URL is fetched and extracted
+    individually. Falls back to a regex scan of raw hrefs if trafilatura
+    finds no links in the extracted content.
+
+    This is content-aware: no hardcoded URL patterns or nav-slug blocklists.
+    """
+    _ = source_key  # reserved for future per-source tuning (e.g. link XPath)
+    try:
+        import requests
+        import trafilatura
+    except ImportError as e:
+        return [{"error": f"{e.name} not installed"}]
+    
+    ua = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) nooz-hermes/1.0 (+https://github.com/nooz)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+    
+    try:
+        resp = requests.get(url, headers=ua, timeout=25, allow_redirects=True)
+    except Exception as e:
+        return [{"error": f"fetch error: {e}"}]
+    
+    if resp.status_code != 200:
+        return [{"error": f"HTTP {resp.status_code}"}]
+    
+    html = resp.text
+    final_url = resp.url
+    from urllib.parse import urljoin, urlsplit
+    
+    # Primary: trafilatura extracts main content (excludes nav/boilerplate)
+    # and emits markdown links [label](href) for in-content links.
+    candidates = []
+    try:
+        doc = trafilatura.bare_extraction(
+            html, include_links=True, include_tables=True
+        )
+        if doc:
+            text = (doc.as_dict().get("text") if hasattr(doc, "as_dict") else "") or ""
+            # Markdown links: [label](href)
+            md_links = re.findall(r'\[([^\]]+)\]\(([^)]+)\)', text)
+            for label, href in md_links:
+                if href.startswith('#') or href.startswith('javascript:') or href.startswith('mailto:'):
+                    continue
+                absolute = urljoin(final_url, href)
+                p = urlsplit(absolute)
+                absolute = p._replace(query='', fragment='').geturl()
+                candidates.append((label, absolute))
+    except Exception:
+        pass
+    
+    # Fallback: if trafilatura found no links, scan raw hrefs for article-like
+    # paths. This is less precise but catches cases where the listing page is
+    # mostly links with little body text.
+    if not candidates:
+        article_patterns = [
+            r'/pressreleases?/[^/?#]+',
+            r'/press-releases?/[^/?#]+',
+            r'/newsroom/[^/?#]+/[^/?#]+/?$',
+            r'/news/[^/?#]+/?$',
+            r'/announcement/[^/?#]+',
+            r'/blog/[^/?#]+/?$',
+        ]
+        combined = re.compile('|'.join(f'({p})' for p in article_patterns))
+        href_re = re.compile(r'href=["\']([^"\']+)["\']', re.IGNORECASE)
+        for m in href_re.finditer(html):
+            href = m.group(1)
+            if href.startswith('#') or href.startswith('javascript:') or href.startswith('mailto:'):
+                continue
+            if not combined.search(href):
+                continue
+            absolute = urljoin(final_url, href)
+            p = urlsplit(absolute)
+            absolute = p._replace(query='', fragment='').geturl()
+            candidates.append(("", absolute))
+    
+    # Dedup by URL, preserve order, cap at limit. Skip the listing page itself
+    # and obvious non-article slugs (section index pages).
+    section_slugs = {
+        'news', 'press-releases', 'pressreleases', 'blog', 'newsroom',
+        'press', 'announcements', 'resources', 'category', 'categories',
+    }
+    seen_local = set()
+    unique = []
+    for label, c in candidates:
+        if c in seen_local or c == final_url:
+            continue
+        path = urlsplit(c).path.rstrip('/')
+        slug = path.rsplit('/', 1)[-1].lower() if path else ''
+        # Skip section index pages (e.g. /newsroom/pressreleases with no slug)
+        if slug in section_slugs:
+            continue
+        seen_local.add(c)
+        unique.append((label, c))
+        if len(unique) >= limit:
+            break
+    
+    entries = []
+    for label, article_url in unique:
+        try:
+            art_resp = requests.get(article_url, headers=ua, timeout=20, allow_redirects=True)
+        except Exception as e:
+            entries.append({"error": f"fetch error: {e}", "link": article_url})
+            continue
+        if art_resp.status_code != 200:
+            entries.append({"error": f"HTTP {art_resp.status_code}", "link": article_url})
+            continue
+        extracted = trafilatura.extract(
+            art_resp.text,
+            include_links=True,
+            include_tables=True,
+            output_format='json',
+            url=article_url,
+        )
+        title = None
+        body = ""
+        published = ""
+        if extracted:
+            try:
+                data = json.loads(extracted)
+                title = data.get("title")
+                body = data.get("text", "")[:5000]
+                # trafilatura sometimes returns date in 'date' field
+                published = data.get("date", "") or ""
+            except (json.JSONDecodeError, AttributeError):
+                pass
+        if not title:
+            # Fallback: use the link label from the listing page, or <title> tag
+            if label:
+                title = label
+            else:
+                t_match = re.search(r'<title[^>]*>([^<]+)</title>', art_resp.text, re.IGNORECASE)
+                title = t_match.group(1).strip() if t_match else article_url
+        entries.append({
+            "title": title,
+            "link": article_url,
+            "summary": body,
+            "published": published,
+            "author": "",
+        })
+    
+    return entries
+
+
 def check_source_health(url: str, timeout: int = 10) -> Dict:
     """Check if a source URL is healthy."""
     try:
@@ -271,6 +522,10 @@ def fetch_source(source: Dict, limit: int, seen: Dict[str, dict]) -> List[Dict]:
     # Determine fetch method based on source type
     if source["type"] == "repos" or "github.com" in url:
         entries = fetch_github_releases(url, limit=limit)
+    elif source["type"] == "html":
+        entries = fetch_html_page(url, source_key, limit=limit)
+    elif source["type"] == "json":
+        entries = fetch_json_api(url, limit=limit)
     else:
         entries = fetch_rss_feed(url, limit=limit)
     

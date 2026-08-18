@@ -206,7 +206,58 @@ None — no new scout was created.
 
 ---
 
-## 2026-08-11 — Cycle 5
+## 2026-08-17 — Cycle 6
+
+### Sources Added
+None — no new sources added. The 4 fabric sources added in cycle 5 (arista-blog, broadcom-news, ultra-ethernet, cxl-consortium) are all blocked by Cloudflare/WAF or are non-RSS HTML pages. Attempted hpe-newsroom URL fix — HTTP 000/302 from this network. No working replacement URLs found.
+
+### Scout Skills Modified
+None — no scout skill files modified this cycle. All scouts executed with current skill configurations.
+
+### Scout Skills Created
+None — no new scout was created. No gap with cycle_count ≥ 2 warrants a brand-new domain that isn't already covered by an existing scout. The interconnect-cooling failure (4 cycles) is a source-access and subagent-reliability problem, not a missing-domain problem. Creating a new scout wouldn't help because the underlying feeds are blocked.
+
+### Scout Skills Archived (if any)
+None — no scout has 3+ barren cycles. middleware has 2 barren cycles (0 findings due to dedup). No barren_cycles counter exists in any scout skill — this metadata gap should be addressed in a future cycle.
+
+### Gaps Identified
+
+#### Status unchanged (stable):
+- **China-HPC first-party sources** (cycle_count: 6): 1 marginal finding (DeepSeek Harness from HPCwire). Pattern stable — one cross-cutting finding per cycle from HPCwire.
+- **ACM/IJHPCA journal feeds** (cycle_count: 6): No change. arXiv fills the gap adequately.
+- **Emerging accelerator vendor feeds** (cycle_count: 6): Stable — Cerebras (1 strong finding: OpenAI GPT-5.6 Ultrafast) and SambaNova (1 finding: premium inference thesis). Groq/QuiX/Intel/Qualcomm returned 0.
+- **Quantum vendor feeds** (cycle_count: 6): Stable — 4 findings from arXiv quant-ph (3) and HPCwire (1). Vendor feeds silent but academic coverage sufficient.
+- **Scout subagent reliability** (cycle_count: 3): Stable at 87% for 2nd consecutive cycle. Same 2 failures: vendors-systems + interconnect-cooling.
+- **China-HPC English-language coverage** (cycle_count: 3): Stable — 1 marginal finding per cycle.
+
+#### WORSENED:
+- **HPE/Dell/IBM/Supermicro newsroom** (cycle_count: 6): **CRITICAL** — vendors-systems FAILED for 2nd consecutive cycle. Previously Lenovo-only (cycle 4), now completely silent for 2 cycles. Root cause: hpe-newsroom unreachable (HTTP 000/302), other feeds are HTML pages (NOT A FEED). Combined with the new vendors-systems-specific gap below.
+- **vendors-systems scout failure** (cycle_count: 2): **CRITICAL** — 2nd consecutive failure. System vendor coverage is effectively dead. No procurement comparison across HP, Dell, Lenovo, IBM, Supermicro possible.
+- **Interconnect fabric coverage** (cycle_count: 4): **CRITICAL** — 4th consecutive scout failure. The 4 fabric sources added in cycle 5 are all blocked or non-RSS, meaning the fix was ineffective. Arista-blog returns Cloudflare WAF challenge. Broadcom investor site fails. Ultra Ethernet on wpengine CDN returns HTML. CXL Consortium is an HTML page. The interconnect-cooling scout has the broadest source scope (12 sources) and the worst reliability. Recommend splitting into cooling-only and fabric-only scouts, or switching to web-search-based fallback for fabric content.
+- **Content retrieval blocked** (cycle_count: 4): **WORSENING** — now directly causes the interconnect-cooling failure. Cloudflare WAF + cookie-gates block all 4 new fabric sources. HPCwire/Next Platform retrieval works intermittently.
+
+#### New this cycle:
+None — no new gap types identified. All gaps are continuations of previously identified issues.
+
+### Quality Issues
+- **LLM Inference Infrastructure Revolution dominated** — 6 of the top 17 curated findings related to inference silicon/memory/scheduling. This is a concentrated signal that the inference cost curve is bending faster than expected. Cerebras wafer-scale, KAIST HBF, CoRun determinism, StickyInvoc task model, ReRAM NMP, and Qwen 2.4T on GB300 all represent different vectors attacking the same problem.
+- **Agentic AI arrived as a first-class HPC workload class** — DeepSeek Harness (MIT-licensed) and Argonne Academy (federated agent middleware) are the two lead signals. HPC admins should expect "autonomous agents on cluster" proposals.
+- **Scheduling research delivered operational recipes** — 4 peer-reviewed papers (MIG repartitioning, A-SRPT, co-scheduling theory, multi-cluster SLURM) form a coherent upgrade package.
+- **CAPIO transparent I/O streaming** is a deployable fix for the perennial "I/O bottleneck" complaint — 50% gains on cosmological simulations without source code changes.
+- **DRAMPower calibrated to <5% error** — actionable for power-aware scheduling on real hardware.
+- **HPC-LLM self-hosted helpdesk** — reproducible QLoRA recipe for a facility-specific chatbot that avoids generic LLM hallucinations on SLURM directives.
+- **JUBE from Jülich** is the open-source benchmarking engine that powered JUPITER procurement — the most consequential HPC procurement in Europe.
+- **LineShine TOP500 story missed** — visible in HPCwire sidebar but not fetched. Flag for next cycle.
+- **BSC Barcelona feed effectively dead** — newest entry April 2022. Recommend removing or replacing the source.
+- **source_health.py timed out at 120s** — only ~50/75 sources checked. Recommend increasing timeout or splitting.
+- **No barren_cycles counters** exist in any scout skill file. Evolution skill specifies they should be present. This metadata gap prevents automated archival evaluation.
+
+### Pipeline Reliability
+- **Scout reliability stable** at 87% (13/15) — same as last cycle. The 2 failures (vendors-systems, interconnect-cooling) are the same two as last cycle. No new failure modes. No regressions. No recoveries.
+- **Poll-and-collect protocol continues to work.** All 5 batches dispatched with correct timing (480s wait + 120s second poll). quantum-hpc appeared on the second poll (120s grace period worked). Missing files correctly marked FAILED without re-dispatch.
+- **Mark_reported.py ran successfully** — 131 articles flipped to reported=true. No data-loss scenario.
+- **Rich cycle overall** — ~46 findings across 8 scouts. 5 major themes in the curated set. openaire-systems was the richest scout (12 findings, 30KB).
+- **Total pipeline wall-clock time:** ~85 minutes (sync+health + 5×10 min scout batches + curation/report + evolution step).
 
 ### Sources Added
 - **rss/arista-blog**: `https://www.arista.com/en/blog` — Arista Networks engineering blog (Ethernet switching, EOS, 400G/800G for AI/HPC). Added to address interconnect fabric coverage gap (cycle_count: 3).

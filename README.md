@@ -14,7 +14,8 @@ Every week, automatically:
    filter for new articles (deduped against a seen-items registry), and produce structured findings.
 3. **Curates** — Deduplicates, prioritizes, theme-groups, and tags findings.
 4. **Generates a report** — Synthesizes a weekly HPC/AI intelligence report with citations,
-   credibility indicators, and technical depth.
+   credibility indicators, and technical depth, then humanizes the prose with the
+   `humanizer` skill to strip AI writing patterns.
 5. **Evolves** — Analyzes coverage gaps and autonomously:
    - Adds new sources (unlimited)
    - Modifies existing scout skills (unlimited, low-risk)
@@ -89,7 +90,7 @@ nooz-hermes/
 │   └── source_health.py                # Source health checker
 ├── skills/                             # Scout + meta skills (read directly by the orchestrator)
 │   ├── scouts/                         # Scout skills (one per domain)
-│   └── meta/                           # Pipeline orchestration skills
+│   └── meta/                           # Pipeline orchestration + humanizer skills
 ├── sources/
 │   ├── rss/                            # 76 RSS source definitions
 │   └── repos/                          # 3 GitHub release sources

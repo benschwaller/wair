@@ -8,7 +8,7 @@ cron scheduling, skill loading, delegate_task subagents, and autonomous evolutio
 
 - Python scripts live in `scripts/`. They handle RSS/GitHub fetching with dedup.
 - Scout skills live in `skills/scouts/`. Each scout monitors a domain.
-- Meta skills (orchestrator, evolution) live in `skills/meta/`.
+- Meta skills (orchestrator, evolution, humanizer) live in `skills/meta/`.
 - Source definitions live in `sources/rss/` and `sources/repos/` as markdown files.
 - All output goes to `workspace/` (reports, findings, memory).
 - The pipeline is driven by a weekly cron job whose prompt instructs the

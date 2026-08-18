@@ -41,11 +41,64 @@ For each new source:
 # [Source Name]
 
 URL: [full URL]
+Type: [rss|html|json|repos]   # optional; defaults to directory name (rss/ or repos/)
 
 Description: [brief description of what this source covers]
 ```
 3. Log the addition to `workspace/memory/evolution-log.md`
 4. Add the source to the relevant scout skill's "Sources" section via skill_manage(action='patch')
+
+#### Source `Type:` field
+
+The `Type:` field is optional and controls how `fetch_new_rss.py` fetches the source:
+
+- `rss` (default for `sources/rss/`) — parse the URL as an RSS/Atom feed with feedparser.
+- `repos` (default for `sources/repos/`) — fetch GitHub releases via the API.
+- `html` — scrape an HTML listing page with trafilatura. Use this for vendor
+  newsrooms that publish no RSS feed (e.g. Supermicro, Uptime Institute).
+  The fetcher extracts the main content, follows article links it finds, and
+  extracts each article individually. No hardcoded URL patterns — it is
+  content-aware.
+- `json` — fetch a JSON API endpoint and extract items from the `items`/
+  `results`/`data` array. Use this for vendor newsrooms that are JS apps
+  backed by a JSON API (e.g. HPE's AEM endpoint). The fetcher tries common
+  field names (`title`, `link`/`url`/`cta.link`, `contentDate`/`date`,
+  `description`/`summary`).
+
+When you add a source, set `Type:` explicitly if the URL is not a real RSS feed.
+`source_health.py` skips the feed-validity check for `html` and `json` sources
+(so they won't be falsely flagged as "NOT A FEED").
+
+### Fixing Broken Sources — UNLIMITED (and encouraged)
+
+When a source fails the health check (404, timeout, or "NOT A FEED"), fix it
+rather than leaving it broken. Use the discovery tool to find a working URL:
+
+```bash
+# Probe a source's current URL for real feeds, JSON APIs, or scrapable HTML:
+python3 scripts/discover_feeds.py --source rss/<source-name>
+
+# Or probe an arbitrary URL:
+python3 scripts/discover_feeds.py https://www.example.com/newsroom
+```
+
+The tool tries three strategies and reports a winner:
+1. `<link rel=alternate>` tags in the HTML pointing at RSS/Atom feeds
+2. Common feed paths (`/feed`, `/rss`, `/rss.xml`, `/blog/feed`, etc.)
+3. Backing JSON APIs (AEM `.model.json`, WordPress `wp-json`)
+
+If it finds a working feed or JSON API, update the source `.md` file's `URL:`
+line (and set `Type:` accordingly). If no feed exists but the page has
+article-like links, set `Type: html` and keep the listing-page URL — the
+fetcher will scrape it via trafilatura.
+
+Always log the fix to `workspace/memory/evolution-log.md` under "Sources
+Updated (URL fixes)" with the old and new URL and the reason.
+
+**Do not guess URLs.** The cycle-5 fabric-source additions
+(arista-blog, broadcom-news, ultra-ethernet, cxl-consortium) all failed
+because plausible-looking URLs were committed without validation. Always
+run `discover_feeds.py` first and use the URL it validates.
 
 ### Modifying Existing Scout Skills — UNLIMITED (low-risk improvements)
 
